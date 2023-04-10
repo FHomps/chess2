@@ -77,7 +77,7 @@ fn setup_ui(
             .insert(SpriteSheetBundle {
             texture_atlas: pieces_atlas.clone(),
             sprite: TextureAtlasSprite {
-                index: *piece as usize,
+                index: piece.texture_index(),
                 custom_size: Some(Vec2::ONE),
                 ..default()
             },
@@ -130,8 +130,8 @@ fn select_piece(
 
     if buttons.just_pressed(MouseButton::Left) {
         let local_coords = Coords {
-            x: (local_pos.x + bw / 2.).floor() as i32,
-            y: (local_pos.y + bh / 2.).floor() as i32
+            x: (local_pos.x + bw / 2.).floor() as isize,
+            y: (local_pos.y + bh / 2.).floor() as isize
         };
 
         for (entity, mut transform, coords, maybe_selected) in pieces.iter_mut() {

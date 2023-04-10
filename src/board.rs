@@ -8,17 +8,18 @@ pub struct BoardPlugin {
 
 impl Plugin for BoardPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Board { spaces: Array2::<Space>::from_elem((0, 0), Space::Hole) })
+        app.insert_resource(Board::default())
             .insert_resource(SavedGame { board_string: self.board_string })
             .insert_resource(Side::White)
             .add_startup_system(setup_board.in_set(GameSet::BoardSetup));
     }
 }
 
+// Signed coordinates, useful for computations before filtering out of bounds squares
 #[derive(Component, Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Coords {
-    pub x: i32,
-    pub y: i32
+    pub x: isize,
+    pub y: isize
 }
 
 #[derive(Resource, Clone, Copy, PartialEq)]
@@ -32,27 +33,60 @@ pub enum Side {
 pub struct Square;
 
 // Marks an entity as that of a piece on the board.
-#[derive(Component, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
 pub enum Piece {
-    WKing,
+    WKing {
+        can_castle: bool
+    },
     WQueen,
     WBishop,
     WKnight,
-    WRook,
-    WPawn,
-    BKing,
+    WRook {
+        can_castle: bool
+    },
+    WPawn {
+        can_dash: bool,
+        just_dashed: bool
+    },
+    BKing {
+        can_castle: bool
+    },
     BQueen,
     BBishop,
     BKnight,
-    BRook,
-    BPawn
+    BRook {
+        can_castle: bool
+    },
+    BPawn {
+        can_dash: bool,
+        just_dashed: bool
+    }
 }
 use Piece::*;
 
 impl Piece {
     pub fn side(self: &Self) -> Side {
-        if *self < BKing { Side::White }
-        else { Side::Black }
+        match self {
+            WKing{..} | WQueen | WBishop | WKnight | WRook{..} | WPawn{..} => Side::White,
+            BKing{..} | BQueen | BBishop | BKnight | BRook{..} | BPawn{..} => Side::Black
+        }
+    }
+
+    pub fn texture_index(self: &Self) -> usize {
+        match self {
+            WKing{..} => 0,
+            WQueen    => 1,
+            WBishop   => 2,
+            WKnight   => 3,
+            WRook{..} => 4,
+            WPawn{..} => 5,
+            BKing{..} => 6,
+            BQueen    => 7,
+            BBishop   => 8,
+            BKnight   => 9,
+            BRook{..} => 10,
+            BPawn{..} => 11
+        }
     }
 }
 
@@ -63,11 +97,15 @@ pub enum Space {
     Piece(Piece)
 }
 
-// Lightweight board representation, updated from piece entities upon change
-// Useful when computing possible moves etc.
 #[derive(Resource, Clone, PartialEq)]
 pub struct Board {
     pub spaces: Array2<Space>
+}
+
+impl Default for Board {
+    fn default() -> Self {
+        Board { spaces: Array2::<Space>::from_elem((0, 0), Space::Hole) }
+    }
 }
 
 unsafe impl NdIndex<Ix2> for Coords {
@@ -118,7 +156,7 @@ fn setup_board(
                 .iter()
                 .enumerate()
                 .map(move |(col_n, byte)| (
-                    Coords { x: col_n as i32, y: y as i32},
+                    Coords { x: col_n as isize, y: y as isize},
                     byte
                 ))
         })
@@ -134,18 +172,18 @@ fn setup_board(
         }
 
         if let Some(piece) = match byte {
-            b'K' => Some(WKing),
+            b'K' => Some(WKing { can_castle: true }),
             b'Q' => Some(WQueen),
-            b'R' => Some(WRook),
+            b'R' => Some(WRook { can_castle: true }),
             b'B' => Some(WBishop),
             b'N' => Some(WKnight),
-            b'P' => Some(WPawn),
-            b'k' => Some(BKing),
+            b'P' => Some(WPawn { can_dash: true, just_dashed: false }),
+            b'k' => Some(BKing { can_castle: true }),
             b'q' => Some(BQueen),
-            b'r' => Some(BRook),
+            b'r' => Some(BRook { can_castle: true }),
             b'b' => Some(BBishop),
             b'n' => Some(BKnight),
-            b'p' => Some(BPawn),
+            b'p' => Some(BPawn { can_dash: true, just_dashed: false }),
             _ => None
         } {
             commands.spawn((
