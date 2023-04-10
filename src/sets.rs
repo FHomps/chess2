@@ -9,14 +9,6 @@ impl Plugin for SetsPlugin {
         app.edit_schedule(CoreSchedule::Startup, 
             |s| { s.configure_set(UISetup.after(BoardSetup)); }
         );
-
-        // apply commands between board setup and UI setup
-        // This populates the piece entities so that UI setup may give them sprite components
-        app.add_startup_system(
-            apply_system_buffers
-            .after(BoardSetup)
-            .before(UISetup)
-        );
     }
 }
 

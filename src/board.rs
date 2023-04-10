@@ -126,7 +126,6 @@ struct SavedGame {
 }
 
 fn setup_board(
-    mut commands: Commands,
     saved_game: Res<SavedGame>,
     mut board: ResMut<Board>,
     side: Res<Side>
@@ -146,7 +145,7 @@ fn setup_board(
 
     let bw = rows[0].len();
     let bh = rows.len();
-    board.spaces = Array::from_elem((bw, bh), Space::Hole);
+    board.spaces = Array2::from_elem((bw, bh), Space::Hole);
 
     for (coords, &byte) in rows.iter()
         .enumerate()
@@ -163,11 +162,6 @@ fn setup_board(
         .flatten()
     {
         if byte != b'X' {
-            commands.spawn((
-                Square,
-                coords
-            ));
-
             board.spaces[coords] = Space::Square;
         }
 
@@ -186,11 +180,6 @@ fn setup_board(
             b'p' => Some(BPawn { can_dash: true, just_dashed: false }),
             _ => None
         } {
-            commands.spawn((
-                piece,
-                coords
-            ));
-
             board.spaces[coords] = Space::Piece(piece);
         }
     }

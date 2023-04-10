@@ -42,10 +42,6 @@ fn setup_ui(
     asset_server: Res<AssetServer>,
     mut atlases: ResMut<Assets<TextureAtlas>>,
     board: Res<Board>,
-    mut set: ParamSet<(
-        Query<(Entity, &Coords, &Piece)>,
-        Query<(Entity, &Coords), With<Square>>
-    )>
 ) {
     let (bw, bh) = board.spaces.dim();
     let (bw, bh) = (bw as f32, bh as f32);
@@ -60,54 +56,58 @@ fn setup_ui(
         }
     ));
 
-    let pa_id = commands.spawn((
-        PlayArea,
-        TransformBundle::default(),
-        InverseGTransformCache::default(),
-        VisibilityBundle::default()
-    )).id();
-
     let pieces_atlas = atlases.add(TextureAtlas::from_grid(
         asset_server.load("pieces.png"), Vec2::splat(PIECE_TEX_SIZE), 6, 2, None, None
     ));
 
-    for (entity, coords, piece) in set.p0().iter() {
-        commands.entity(entity)
-            .set_parent(pa_id)
-            .insert(SpriteSheetBundle {
-            texture_atlas: pieces_atlas.clone(),
-            sprite: TextureAtlasSprite {
-                index: piece.texture_index(),
-                custom_size: Some(Vec2::ONE),
-                ..default()
-            },
-            transform: Transform::from_translation(Vec3::new(
-                coords.x as f32 - (bw - 1.) / 2.,
-                coords.y as f32 - (bh - 1.) / 2.,
-                2.
-            )),
-            ..default()
-        });
-    }
+    let pa_commands = commands.spawn((
+        PlayArea,
+        TransformBundle::default(),
+        InverseGTransformCache::default(),
+        VisibilityBundle::default()
+    )).with_children(|builder| {
+        for ((x, y), space) in board.spaces.indexed_iter() {
+            if *space != Space::Hole {
+                builder.spawn(
+                    SpriteBundle {
+                        sprite: Sprite {
+                            color: if (x + y) % 2 == 0 { Color::rgb(0.8, 0.8, 0.8) }
+                                   else { Color::rgb(0.2, 0.3, 0.4) },
+                            custom_size: Some(Vec2::ONE),
+                            ..default()
+                        },
+                        transform: Transform::from_translation(Vec3::new(
+                            x as f32 - (bw - 1.) / 2.,
+                            y as f32 - (bh - 1.) / 2.,
+                            1.
+                        )),
+                        ..default()
+                    }
+                );
+            }
 
-    for (entity, coords) in set.p1().iter() {
-        commands.entity(entity)
-            .set_parent(pa_id)
-            .insert(SpriteBundle {
-            sprite: Sprite {
-                color: if (coords.x + coords.y) % 2 == 0 { Color::rgb(0.8, 0.8, 0.8) }
-                       else { Color::rgb(0.2, 0.3, 0.4) },
-                custom_size: Some(Vec2::ONE),
-                ..default()
-            },
-            transform: Transform::from_translation(Vec3::new(
-                coords.x as f32 - (bw - 1.) / 2.,
-                coords.y as f32 - (bh - 1.) / 2.,
-                1.
-            )),
-            ..default()
-        });
-    }
+            if let Space::Piece(piece) = space {
+                builder.spawn((
+                    *piece,
+                    Coords { x: x as isize, y: y as isize },
+                    SpriteSheetBundle {
+                        texture_atlas: pieces_atlas.clone(),
+                        sprite: TextureAtlasSprite {
+                            index: piece.texture_index(),
+                            custom_size: Some(Vec2::ONE),
+                            ..default()
+                        },
+                        transform: Transform::from_translation(Vec3::new(
+                            x as f32 - (bw - 1.) / 2.,
+                            y as f32 - (bh - 1.) / 2.,
+                            2.
+                        )),
+                        ..default()
+                    }
+                ));
+            }
+        }
+    });
 }
 
 fn select_piece(

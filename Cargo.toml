@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = { version = "0.10.0", features = ["dynamic_linking", "jpeg"] }
+bevy = { version = "0.10.1", features = ["dynamic_linking", "jpeg"] }
 ndarray = "0.15.6"
 
 [profile.dev]
