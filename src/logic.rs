@@ -1,18 +1,8 @@
 use std::collections::HashMap;
-use std::iter::once;
+use std::iter::{once, successors, from_fn};
 
 use crate::board::*;
 use crate::board::Piece::*;
-
-fn filter_captures(target: &Coords, board: &Board, side: Side) -> bool {
-    // get() will return None if target space is out of bounds
-    let Some(space) = board.spaces.get(*target) else { return false; };
-    match space {
-        Space::Square => true,
-        Space::Hole => false,
-        Space::Piece(piece) => piece.side() != side
-    }
-}
 
 pub fn compute_possible_moves(
     board: &Board,
@@ -45,30 +35,81 @@ pub fn compute_possible_moves(
                 match piece {
                     WKing { can_castle } | BKing { can_castle } => {
                         [
-                            Coords{x: x-1, y: y+1}, Coords{x,      y: y+1}, Coords{x: x+1, y: y+1},
-                            Coords{x: x-1, y     },                         Coords{x: x+1, y     },
-                            Coords{x: x-1, y: y-1}, Coords{x,      y: y-1}, Coords{x: x+1, y: y-1}
+                            Coords{x: x-1, y: y+1}, Coords{x, y: y+1}, Coords{x: x+1, y: y+1},
+                            Coords{x: x-1, y     },                    Coords{x: x+1, y     },
+                            Coords{x: x-1, y: y-1}, Coords{x, y: y-1}, Coords{x: x+1, y: y-1}
                         ].into_iter()
-                        .filter(|target| filter_captures(target, board, side))
+                        // Keep only valid targets
+                        .filter(|target| {
+                            match board.spaces.get(*target) {
+                                Some(Space::Square) => true,
+                                Some(Space::Hole) => false,
+                                Some(Space::Piece(piece)) => piece.side() != side,
+                                _ => false
+                            }
+                        })
                         // Add castling moves
                         .chain(
-                            ([-1 as isize, 1]).into_iter()
+                            ([-1, 1isize]).into_iter()
                             .filter_map(|dir| {
                                 let mut rook_offset = 1;
                                 loop {
                                     match board.spaces.get(Coords{x: x + dir * rook_offset, y}) {
                                         Some(Space::Square) => rook_offset += 1,
-                                        Some(Space::Piece(Piece::WRook { can_castle: true })) =>
-                                            if rook_offset > 2 && side == Side::White { return Some(Coords {x: x + dir * 2, y}); },
-                                        Some(Space::Piece(Piece::BRook { can_castle: true })) =>
-                                            if rook_offset > 2 && side == Side::Black { return Some(Coords {x: x + dir * 2, y}); },
+                                        Some(Space::Piece(Piece::WRook { can_castle: true })) => {
+                                            if rook_offset > 2 && side == Side::White {
+                                                return Some(Coords {x: x + dir * 2, y});
+                                            }
+                                            else { return None; }
+                                        },
+                                        Some(Space::Piece(Piece::BRook { can_castle: true })) => {
+                                            if rook_offset > 2 && side == Side::Black {
+                                                return Some(Coords {x: x + dir * 2, y});
+                                            }
+                                            else { return None; }
+                                        },
                                         _ => return None
-                                    }
+                                    };
                                 }
                             })
                         )
                         .collect()
                     },
+                    WQueen | BQueen => {
+                        // Movement directions
+                        [
+                            [-1,  1], [0,  1], [1,  1],
+                            [-1,  0],          [1,  0],
+                            [-1, -1], [0, -1], [1, -1isize],
+                        ].into_iter()
+                        // Expand directions until pieces are encountered
+                        .map(|[x_step, y_step]| {
+                            let (mut tx, mut ty) = (x, y);
+                            let mut end = false;
+                            from_fn(move || {
+                                tx += x_step;
+                                ty += y_step;
+                                let tc = Coords { x: tx, y: ty };
+                                match board.spaces.get(tc) {
+                                    Some(Space::Square) => {
+                                        if !end { Some(tc) }
+                                        else { None }
+                                    },
+                                    Some(Space::Hole) => None,
+                                    Some(Space::Piece(piece)) => {
+                                        if piece.side() != side {
+                                            end = true;
+                                            Some(tc)
+                                        }
+                                        else { None }
+                                    },
+                                    _ => None
+                                }
+                            })
+                        })
+                        .flatten()
+                        .collect()
+                    }
                     _ => vec!()
                 }
             )
