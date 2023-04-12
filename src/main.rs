@@ -9,10 +9,10 @@ const BOARD_STR: &str = "
 rkbqkbkr
 pppppppp
 ________
-___XX___
+___XX_Q_
 ___XX___
 ________
-PPPPPPPP
+PP____PP
 RKBQKBKR
 ";
 
@@ -22,5 +22,6 @@ fn main() {
         .add_plugin(SetsPlugin)
         .add_plugin(BoardPlugin { board_string: BOARD_STR })
         .add_plugin(UIPlugin)
+        .add_plugin(LogicPlugin)
         .run();
 }

@@ -1,10 +1,23 @@
+use bevy::prelude::*;
 use std::collections::HashMap;
 use std::iter::{once, successors, from_fn};
 
 use crate::board::*;
 use crate::board::Piece::*;
 
-pub fn compute_possible_moves(
+pub struct LogicPlugin;
+
+impl Plugin for LogicPlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(PossibleMoves{0: default()})
+            .add_system(update_possible_moves);
+    }
+}
+
+#[derive(Resource)]
+pub struct PossibleMoves(pub HashMap<Coords, Vec<Coords>>);
+
+fn compute_possible_moves(
     board: &Board,
     side: Side
 ) -> HashMap<Coords, Vec<Coords>> {
@@ -87,14 +100,13 @@ pub fn compute_possible_moves(
                             let (mut tx, mut ty) = (x, y);
                             let mut end = false;
                             from_fn(move || {
+                                if end { return None; }
+
                                 tx += x_step;
                                 ty += y_step;
                                 let tc = Coords { x: tx, y: ty };
                                 match board.spaces.get(tc) {
-                                    Some(Space::Square) => {
-                                        if !end { Some(tc) }
-                                        else { None }
-                                    },
+                                    Some(Space::Square) => Some(tc),
                                     Some(Space::Hole) => None,
                                     Some(Space::Piece(piece)) => {
                                         if piece.side() != side {
@@ -115,4 +127,13 @@ pub fn compute_possible_moves(
             )
         })
         .collect()
+}
+
+pub fn update_possible_moves(
+    mut possible_moves: ResMut<PossibleMoves>,
+    board: Res<Board>,
+    side: Res<Side>
+) {
+    if !board.is_changed() { return; }
+    possible_moves.0 = compute_possible_moves(&*board, *side);
 }

@@ -15,7 +15,6 @@ impl Plugin for SetsPlugin {
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum GameSet {
     BoardSetup,
-    UISetup,
-    PieceSelection,
+    UISetup
 }
 use GameSet::*;

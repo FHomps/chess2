@@ -1,6 +1,7 @@
 use bevy::{prelude::*, window::WindowResized, transform::TransformSystem};
 use crate::sets::*;
 use crate::board::*;
+use crate::logic::*;
 
 const BG_TEX_SIZE: Vec2 = Vec2::new(2560., 1587.);
 const PIECE_TEX_SIZE: f32 = 256.;
@@ -11,7 +12,7 @@ impl Plugin for UIPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(setup_ui.in_set(GameSet::UISetup))
             .add_system(update_transform_cache.in_base_set(CoreSet::PostUpdate).after(TransformSystem::TransformPropagate))
-            .add_system(select_piece.in_set(GameSet::PieceSelection))
+            .add_system(select_piece)
             .add_system(handle_window_resize);
     }
 }
@@ -37,6 +38,15 @@ impl Default for InverseGTransformCache {
 #[derive(Component)]
 struct Selected;
 
+#[derive(Component)]
+struct Marker;
+
+#[derive(Resource)]
+struct TextureHandles {
+    marker: Handle<Image>
+}
+
+
 fn setup_ui(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -59,6 +69,12 @@ fn setup_ui(
     let pieces_atlas = atlases.add(TextureAtlas::from_grid(
         asset_server.load("pieces.png"), Vec2::splat(PIECE_TEX_SIZE), 6, 2, None, None
     ));
+
+    commands.insert_resource(
+        TextureHandles {
+            marker: asset_server.load("marker.png")
+        }
+    );
 
     let pa_commands = commands.spawn((
         PlayArea,
@@ -115,8 +131,11 @@ fn select_piece(
     windows: Query<&Window>,
     buttons: Res<Input<MouseButton>>,
     board: Res<Board>,
-    pa_matrix: Query<&InverseGTransformCache, With<PlayArea>>,
-    mut pieces: Query<(Entity, &mut Transform, &Coords, Option<&Selected>), With<Piece>>
+    play_area: Query<(Entity, &InverseGTransformCache), With<PlayArea>>,
+    mut pieces: Query<(Entity, &mut Transform, &Coords, Option<&Selected>), With<Piece>>,
+    markers: Query<Entity, With<Marker>>,
+    possible_moves: Res<PossibleMoves>,
+    texture_handles: Res<TextureHandles>
 ) {
     let (bw, bh) = board.spaces.dim();
     let (bw, bh) = (bw as f32, bh as f32);
@@ -125,7 +144,7 @@ fn select_piece(
     pos.x -= window.width() / 2.;
     pos.y -= window.height() / 2.;
 
-    let Ok(InverseGTransformCache { matrix }) = pa_matrix.get_single() else { return };
+    let Ok((pa_entity, InverseGTransformCache { matrix })) = play_area.get_single() else { return };
     let local_pos = matrix.transform_point3(pos.extend(0.));
 
     if buttons.just_pressed(MouseButton::Left) {
@@ -143,11 +162,39 @@ fn select_piece(
                     2.
                 );
                 transform.scale = Vec3::ONE;
+
+                for marker in markers.iter() {
+                    commands.entity(marker).despawn();
+                }
             }
             else if local_coords == *coords {
                 commands.entity(entity).insert(Selected);
                 transform.translation = local_pos.truncate().extend(3.);
                 transform.scale = Vec2::splat(1.2).extend(1.);
+                
+                if let Some(moves) = possible_moves.0.get(coords) {
+                    commands.entity(pa_entity).with_children(|parent| {
+                        for target in moves {
+                            parent.spawn((
+                                Marker,
+                                SpriteBundle {
+                                    sprite: Sprite {
+                                        color: Color::rgb(0.2, 0.6, 0.3),
+                                        custom_size: Some(Vec2::ONE),
+                                        ..default()
+                                    },
+                                    transform: Transform::from_translation(Vec3::new(
+                                        target.x as f32 - (bw - 1.) / 2.,
+                                        target.y as f32 - (bh - 1.) / 2.,
+                                        1.
+                                    )),
+                                    texture: texture_handles.marker.clone(),
+                                    ..default()
+                                }
+                            ));
+                        }
+                    });
+                }
             }
         }
     }
