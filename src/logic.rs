@@ -41,6 +41,30 @@ fn compute_possible_moves(
         .map(|(coords, piece)|
         {
             let Coords { x, y } = coords;
+            let moves_from_direction = |direction: [isize; 2]| {
+                let (mut tx, mut ty) = (x, y);
+                let mut end = false;
+                from_fn(move || {
+                    if end { return None; }
+
+                    tx += direction[0];
+                    ty += direction[1];
+                    let tc = Coords { x: tx, y: ty };
+                    match board.spaces.get(tc) {
+                        Some(Space::Square) => Some(tc),
+                        Some(Space::Hole) => None,
+                        Some(Space::Piece(piece)) => {
+                            if piece.side() != side {
+                                end = true;
+                                Some(tc)
+                            }
+                            else { None }
+                        },
+                        _ => None
+                    }
+                })
+            };
+
             (
                 coords,
 
@@ -93,35 +117,47 @@ fn compute_possible_moves(
                         [
                             [-1,  1], [0,  1], [1,  1],
                             [-1,  0],          [1,  0],
-                            [-1, -1], [0, -1], [1, -1isize],
+                            [-1, -1], [0, -1], [1, -1isize]
                         ].into_iter()
                         // Expand directions until pieces are encountered
-                        .map(|[x_step, y_step]| {
-                            let (mut tx, mut ty) = (x, y);
-                            let mut end = false;
-                            from_fn(move || {
-                                if end { return None; }
-
-                                tx += x_step;
-                                ty += y_step;
-                                let tc = Coords { x: tx, y: ty };
-                                match board.spaces.get(tc) {
-                                    Some(Space::Square) => Some(tc),
-                                    Some(Space::Hole) => None,
-                                    Some(Space::Piece(piece)) => {
-                                        if piece.side() != side {
-                                            end = true;
-                                            Some(tc)
-                                        }
-                                        else { None }
-                                    },
-                                    _ => None
-                                }
-                            })
-                        })
+                        .map(moves_from_direction)
+                        .flatten()
+                        .collect()
+                    },
+                    WBishop | BBishop => {
+                        [
+                            [-1,  1], [1,  1], [-1, -1], [1, -1isize]
+                        ].into_iter()
+                        .map(moves_from_direction)
                         .flatten()
                         .collect()
                     }
+                    WRook {..} | BRook {..} => {
+                        [
+                            [-1,  0], [0,  1], [0, -1], [1, 0isize]
+                        ].into_iter()
+                        .map(moves_from_direction)
+                        .flatten()
+                        .collect()
+                    },
+                    WKnight => {
+                        [
+                            Coords{x: x-1, y: y+2}, Coords{x: x+1, y: y+2},
+                            Coords{x: x+2, y: y-1}, Coords{x: x+2, y: y+1},
+                            Coords{x: x-1, y: y-2}, Coords{x: x+1, y: y-2},
+                            Coords{x: x-2, y: y-1}, Coords{x: x-2, y: y+1},
+                        ].into_iter()
+                        // Keep only valid targets
+                        .filter(|target| {
+                            match board.spaces.get(*target) {
+                                Some(Space::Square) => true,
+                                Some(Space::Hole) => false,
+                                Some(Space::Piece(piece)) => piece.side() != side,
+                                _ => false
+                            }
+                        })
+                        .collect()
+                    },
                     _ => vec!()
                 }
             )

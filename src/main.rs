@@ -6,14 +6,14 @@ mod logic; use logic::*;
 use bevy::prelude::*;
 
 const BOARD_STR: &str = "
-rkbqkbkr
+rnbqkbnr
 pppppppp
 ________
 ___XX_Q_
 ___XX___
 ________
 PP____PP
-RKBQKBKR
+R___K__R
 ";
 
 fn main() {
