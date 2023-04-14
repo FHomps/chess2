@@ -1,18 +1,11 @@
+use core::panic;
 use bevy::prelude::*;
 use ndarray::*;
-use crate::sets::*;
 
-pub struct BoardPlugin {
-    pub board_string: &'static str
-}
+pub struct BoardPlugin;
 
 impl Plugin for BoardPlugin {
-    fn build(&self, app: &mut App) {
-        app.insert_resource(Board::default())
-            .insert_resource(SavedGame { board_string: self.board_string })
-            .insert_resource(Side::White)
-            .add_startup_system(setup_board.in_set(GameSet::BoardSetup));
-    }
+    fn build(&self, _app: &mut App) {}
 }
 
 // Signed coordinates, useful for computations before filtering out of bounds squares
@@ -20,92 +13,6 @@ impl Plugin for BoardPlugin {
 pub struct Coords {
     pub x: isize,
     pub y: isize
-}
-
-#[derive(Resource, Clone, Copy, PartialEq)]
-pub enum Side {
-    White,
-    Black
-}
-
-// Marks an entity as that of a square on the board.
-#[derive(Component)]
-pub struct Square;
-
-// Marks an entity as that of a piece on the board.
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
-pub enum Piece {
-    WKing {
-        can_castle: bool
-    },
-    WQueen,
-    WBishop,
-    WKnight,
-    WRook {
-        can_castle: bool
-    },
-    WPawn {
-        can_dash: bool,
-        just_dashed: bool
-    },
-    BKing {
-        can_castle: bool
-    },
-    BQueen,
-    BBishop,
-    BKnight,
-    BRook {
-        can_castle: bool
-    },
-    BPawn {
-        can_dash: bool,
-        just_dashed: bool
-    }
-}
-use Piece::*;
-
-impl Piece {
-    pub fn side(self: &Self) -> Side {
-        match self {
-            WKing{..} | WQueen | WBishop | WKnight | WRook{..} | WPawn{..} => Side::White,
-            BKing{..} | BQueen | BBishop | BKnight | BRook{..} | BPawn{..} => Side::Black
-        }
-    }
-
-    pub fn texture_index(self: &Self) -> usize {
-        match self {
-            WKing{..} => 0,
-            WQueen    => 1,
-            WBishop   => 2,
-            WKnight   => 3,
-            WRook{..} => 4,
-            WPawn{..} => 5,
-            BKing{..} => 6,
-            BQueen    => 7,
-            BBishop   => 8,
-            BKnight   => 9,
-            BRook{..} => 10,
-            BPawn{..} => 11
-        }
-    }
-}
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum Space {
-    Hole,
-    Square,
-    Piece(Piece)
-}
-
-#[derive(Resource, Clone, PartialEq)]
-pub struct Board {
-    pub spaces: Array2<Space>
-}
-
-impl Default for Board {
-    fn default() -> Self {
-        Board { spaces: Array2::<Space>::from_elem((0, 0), Space::Hole) }
-    }
 }
 
 unsafe impl NdIndex<Ix2> for Coords {
@@ -120,67 +27,214 @@ unsafe impl NdIndex<Ix2> for Coords {
     }
 }
 
-#[derive(Resource)]
-struct SavedGame {
-    pub board_string: &'static str
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Side {
+    White,
+    Black
+}
+use Side::*;
+
+impl Side {
+    pub fn other(self: &Self) -> Self {
+        match self {
+            White => Black,
+            Black => White
+        }
+    }
 }
 
-fn setup_board(
-    saved_game: Res<SavedGame>,
-    mut board: ResMut<Board>,
-    side: Res<Side>
-) {
-    let board_str = saved_game.board_string;
-    assert!(board_str.is_ascii(), "Board string contains invalid characters");
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PieceModel {
+    King {
+        can_castle: bool
+    },
+    Queen,
+    Bishop,
+    Knight,
+    Rook {
+        can_castle: bool
+    },
+    Pawn {
+        can_dash: bool,
+        just_dashed: bool
+    }
+}
+use PieceModel::*;
 
-    let rows: Vec<&str> = board_str
-        .lines()
-        .map(|row| row.trim())
-        .filter(|row| !row.is_empty())
-        .collect();
+// Marks an entity as that of a piece on the board.
+#[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Piece {
+    pub side: Side,
+    pub model: PieceModel
+}
 
-    assert!(rows.len() != 0, "No board string given");
-    assert!(rows.iter().all(|row| row.len() == rows[0].len()),
-            "Inconsistent board row length in board string");
+impl Piece {
+    pub fn texture_index(self: &Self) -> usize {
+        (match self.model {
+            King{..} => 0,
+            Queen    => 1,
+            Bishop   => 2,
+            Knight   => 3,
+            Rook{..} => 4,
+            Pawn{..} => 5
+        }) + if self.side == Black { 6 } else { 0 }
+    }
+}
 
-    let bw = rows[0].len();
-    let bh = rows.len();
-    board.spaces = Array2::from_elem((bw, bh), Space::Hole);
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum MoveKind {
+    Standard,
+    Dash,
+    Capture,
+    Castle { rook_coords: Coords },
+    EnPassant
+}
 
-    for (coords, &byte) in rows.iter()
-        .enumerate()
-        .map(|(row_n, row)| {
-            let y = rows.len() - row_n - 1;
-            row.as_bytes()
-                .iter()
-                .enumerate()
-                .map(move |(col_n, byte)| (
-                    Coords { x: col_n as isize, y: y as isize},
-                    byte
-                ))
-        })
-        .flatten()
-    {
-        if byte != b'X' {
-            board.spaces[coords] = Space::Square;
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Move {
+    pub source: Coords,
+    pub target: Coords,
+    pub kind: MoveKind,
+    pub promotion: Option<PieceModel>
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Space {
+    Hole,
+    Square {
+        piece: Option<Piece>,
+        promotes: [bool;2]
+    }
+}
+use Space::*;
+
+#[derive(Resource, Clone, PartialEq, Eq, Debug)]
+pub struct Board {
+    pub spaces: Array2<Space>,
+    pub turn: Side,
+    pub captured: Vec<Piece>
+}
+
+impl Board {
+    pub fn from_strings<'a>(board_string: &'a str, promotion_string: &'a str) -> Self {
+        let byte_rows = |s: &'a str| {
+            assert!(s.is_ascii(), "Non-ASCII characters in board strings");
+            s.lines()
+             .rev()
+             .map(|row| row.trim())
+             .filter(|row| !row.is_empty())
+             .map(|row| row.as_bytes())
+        };
+
+        let (b_rows, p_rows) = (byte_rows(board_string), byte_rows(promotion_string));
+        let bh = b_rows.clone().count();
+        assert_eq!(bh, p_rows.clone().count(), "Board strings have different row counts");
+        let bw =
+        if let Some(first_row) = b_rows.clone().next() {
+            first_row.len()
+        }
+        else { panic!("Board strings are empty") };
+
+        let rows = b_rows.zip(p_rows);
+        assert!(rows.clone().all(|(b_row, p_row)| b_row.len() == bw && b_row.len() == p_row.len()), "Inconsistent row sizes across board strings");
+
+        Board {
+            spaces: Array2::from_shape_vec((bw, bh),
+                rows.flat_map(|(b_row, p_row)| {
+                    b_row.iter()
+                        .zip(p_row.iter())
+                        .map(|(&square, &prom)| {
+                            match square {
+                                b'X' => Hole,
+                                square => Square {
+                                    piece: match square {
+                                        b'K' => Some(Piece { side: White, model: King { can_castle: true } }),
+                                        b'Q' => Some(Piece { side: White, model: Queen }),
+                                        b'R' => Some(Piece { side: White, model: Rook { can_castle: true } }),
+                                        b'B' => Some(Piece { side: White, model: Bishop }),
+                                        b'N' => Some(Piece { side: White, model: Knight }),
+                                        b'P' => Some(Piece { side: White, model: Pawn { can_dash: true, just_dashed: false } }),
+                                        b'k' => Some(Piece { side: Black, model: King { can_castle: true } }),
+                                        b'q' => Some(Piece { side: Black, model: Queen }),
+                                        b'r' => Some(Piece { side: Black, model: Rook { can_castle: true } }),
+                                        b'b' => Some(Piece { side: Black, model: Bishop }),
+                                        b'n' => Some(Piece { side: Black, model: Knight }),
+                                        b'p' => Some(Piece { side: Black, model: Pawn { can_dash: true, just_dashed: false } }),
+                                        _ => None
+                                    },
+                                    promotes: match prom {
+                                        b'P' | b'w' | b'W' => [true, false],
+                                        b'p' | b'b' | b'B' => [false, true],
+                                        b'*' => [true, true],
+                                        _ => [false, false]
+                                    }
+                                }
+                            }
+                        })
+
+                }).collect()
+            ).unwrap().reversed_axes(),
+            captured: vec!(),
+            turn: White
+        }
+    }
+
+    // Returns a new board with a move applied
+    // Panics on invalid moves or out of bounds coords
+    pub fn next(self: &Self, _move: &Move) -> Self {
+        let mut next_board = self.clone();
+
+        let Square { piece: ref mut source_piece_slot, .. } = next_board.spaces[_move.source] else {
+            panic!("Invalid move, source is not a square");
+        };
+        let Some(source_piece) = *source_piece_slot else {
+            panic!("Invalid move, no source piece");
+        };
+
+        *source_piece_slot = None;
+
+        match _move.kind {
+            MoveKind::Capture => {
+                let Square { piece: Some(captured_piece), .. } = next_board.spaces[_move.target] else {
+                    panic!("Invalid capture, no target piece");
+                };
+
+                next_board.captured.push(captured_piece);
+            },
+            MoveKind::EnPassant => {
+                let captured_coords = Coords {
+                    x: _move.target.x,
+                    y: _move.source.y
+                };
+                let Square { piece: ref mut captured_piece_slot, .. } = next_board.spaces[captured_coords] else {
+                    panic!("Invalid en passant, google it!");
+                };
+                let Some(captured_piece) = *captured_piece_slot else {
+                    panic!("Invalid en passant, no captured piece");
+                };
+    
+                next_board.captured.push(captured_piece);
+                *captured_piece_slot = None;
+            }
+            _ => ()
         }
 
-        if let Some(piece) = match byte {
-            b'K' => Some(WKing { can_castle: true }),
-            b'Q' => Some(WQueen),
-            b'R' => Some(WRook { can_castle: true }),
-            b'B' => Some(WBishop),
-            b'N' => Some(WKnight),
-            b'P' => Some(WPawn { can_dash: true, just_dashed: false }),
-            b'k' => Some(BKing { can_castle: true }),
-            b'q' => Some(BQueen),
-            b'r' => Some(BRook { can_castle: true }),
-            b'b' => Some(BBishop),
-            b'n' => Some(BKnight),
-            b'p' => Some(BPawn { can_dash: true, just_dashed: false }),
-            _ => None
-        } {
-            board.spaces[coords] = Space::Piece(piece);
+        let Square { piece: ref mut target_piece_slot, .. } = next_board.spaces[_move.target] else {
+            panic!("Invalid move, target is not a square");
+        };
+
+        if let Some(model) = _move.promotion {
+            *target_piece_slot = Some(Piece {
+                model,
+                ..source_piece
+            });
         }
+        else {
+            *target_piece_slot = Some(source_piece);
+        }
+
+        next_board.turn = self.turn.other();
+        next_board
     }
 }

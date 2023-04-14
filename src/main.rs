@@ -12,15 +12,26 @@ ________
 ___XX_Q_
 ___XX___
 ________
-PP____PP
+PP____rP
 R___K__R
+";
+
+const PROM_STR: &str = "
+WWWWWWWW
+________
+________
+___XX___
+___XX___
+________
+________
+bbbbbbbb
 ";
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugin(SetsPlugin)
-        .add_plugin(BoardPlugin { board_string: BOARD_STR })
+        .insert_resource(Board::from_strings(BOARD_STR, PROM_STR))
         .add_plugin(UIPlugin)
         .add_plugin(LogicPlugin)
         .run();

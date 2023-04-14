@@ -36,6 +36,9 @@ impl Default for InverseGTransformCache {
 }
 
 #[derive(Component)]
+struct Square;
+
+#[derive(Component)]
 struct Selected;
 
 #[derive(Component)]
@@ -45,6 +48,7 @@ struct Marker;
 struct TextureHandles {
     marker: Handle<Image>
 }
+
 
 
 fn setup_ui(
@@ -76,19 +80,19 @@ fn setup_ui(
         }
     );
 
-    let pa_commands = commands.spawn((
+    commands.spawn((
         PlayArea,
         TransformBundle::default(),
         InverseGTransformCache::default(),
         VisibilityBundle::default()
-    )).with_children(|builder| {
+    )).with_children(|parent| {
         for ((x, y), space) in board.spaces.indexed_iter() {
             if *space != Space::Hole {
-                builder.spawn(
+                parent.spawn(
                     SpriteBundle {
                         sprite: Sprite {
-                            color: if (x + y) % 2 == 0 { Color::rgb(0.8, 0.8, 0.8) }
-                                   else { Color::rgb(0.2, 0.3, 0.4) },
+                            color: if (x + y) % 2 == 0 { Color::rgb(0.2, 0.3, 0.4) }
+                                   else { Color::rgb(0.8, 0.8, 0.8) },
                             custom_size: Some(Vec2::ONE),
                             ..default()
                         },
@@ -102,8 +106,8 @@ fn setup_ui(
                 );
             }
 
-            if let Space::Piece(piece) = space {
-                builder.spawn((
+            if let Space::Square { piece: Some(piece), .. } = space {
+                parent.spawn((
                     *piece,
                     Coords { x: x as isize, y: y as isize },
                     SpriteSheetBundle {
@@ -174,7 +178,7 @@ fn select_piece(
                 
                 if let Some(moves) = possible_moves.0.get(coords) {
                     commands.entity(pa_entity).with_children(|parent| {
-                        for target in moves {
+                        for _move in moves {
                             parent.spawn((
                                 Marker,
                                 SpriteBundle {
@@ -184,8 +188,8 @@ fn select_piece(
                                         ..default()
                                     },
                                     transform: Transform::from_translation(Vec3::new(
-                                        target.x as f32 - (bw - 1.) / 2.,
-                                        target.y as f32 - (bh - 1.) / 2.,
+                                        _move.target.x as f32 - (bw - 1.) / 2.,
+                                        _move.target.y as f32 - (bh - 1.) / 2.,
                                         1.
                                     )),
                                     texture: texture_handles.marker.clone(),
