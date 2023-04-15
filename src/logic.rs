@@ -9,6 +9,8 @@ use crate::board::Side::*;
 use crate::board::Space::*;
 use crate::board::PieceModel::*;
 
+const CAN_CASTLE_WITH_PROMOTED_ROOK: bool = true;
+
 pub struct LogicPlugin;
 
 impl Plugin for LogicPlugin {
@@ -373,7 +375,7 @@ fn compute_possible_moves(
                             if let Some(Square { promotes, .. }) = board.spaces.get(base_move.target) {
                                 if promotes[piece.side as usize] {
                                     moves.extend(
-                                        [Queen, Bishop, Knight, Rook { can_castle: false }].into_iter()
+                                        [Queen, Bishop, Knight, Rook { can_castle: CAN_CASTLE_WITH_PROMOTED_ROOK }].into_iter()
                                         .map(|model| Move {
                                             promotion: Some(model),
                                             ..base_move
