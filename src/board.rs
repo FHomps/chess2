@@ -83,27 +83,10 @@ impl Piece {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum MoveKind {
-    Standard,
-    Dash,
-    Capture,
-    Castle { rook_coords: Coords },
-    EnPassant
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Move {
-    pub source: Coords,
-    pub target: Coords,
-    pub kind: MoveKind,
-    pub promotion: Option<PieceModel>
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Space {
     Hole,
     Square {
-        piece: Option<Piece>,
+        slot: Option<Piece>,
         promotes: [bool;2]
     }
 }
@@ -148,7 +131,7 @@ impl Board {
                             match square {
                                 b'X' => Hole,
                                 square => Square {
-                                    piece: match square {
+                                    slot: match square {
                                         b'K' => Some(Piece { side: White, model: King { can_castle: true } }),
                                         b'Q' => Some(Piece { side: White, model: Queen }),
                                         b'R' => Some(Piece { side: White, model: Rook { can_castle: true } }),
@@ -178,63 +161,5 @@ impl Board {
             captured: vec!(),
             turn: White
         }
-    }
-
-    // Returns a new board with a move applied
-    // Panics on invalid moves or out of bounds coords
-    pub fn next(self: &Self, _move: &Move) -> Self {
-        let mut next_board = self.clone();
-
-        let Square { piece: ref mut source_piece_slot, .. } = next_board.spaces[_move.source] else {
-            panic!("Invalid move, source is not a square");
-        };
-        let Some(source_piece) = *source_piece_slot else {
-            panic!("Invalid move, no source piece");
-        };
-
-        *source_piece_slot = None;
-
-        match _move.kind {
-            MoveKind::Capture => {
-                let Square { piece: Some(captured_piece), .. } = next_board.spaces[_move.target] else {
-                    panic!("Invalid capture, no target piece");
-                };
-
-                next_board.captured.push(captured_piece);
-            },
-            MoveKind::EnPassant => {
-                let captured_coords = Coords {
-                    x: _move.target.x,
-                    y: _move.source.y
-                };
-                let Square { piece: ref mut captured_piece_slot, .. } = next_board.spaces[captured_coords] else {
-                    panic!("Invalid en passant, google it!");
-                };
-                let Some(captured_piece) = *captured_piece_slot else {
-                    panic!("Invalid en passant, no captured piece");
-                };
-    
-                next_board.captured.push(captured_piece);
-                *captured_piece_slot = None;
-            }
-            _ => ()
-        }
-
-        let Square { piece: ref mut target_piece_slot, .. } = next_board.spaces[_move.target] else {
-            panic!("Invalid move, target is not a square");
-        };
-
-        if let Some(model) = _move.promotion {
-            *target_piece_slot = Some(Piece {
-                model,
-                ..source_piece
-            });
-        }
-        else {
-            *target_piece_slot = Some(source_piece);
-        }
-
-        next_board.turn = self.turn.other();
-        next_board
     }
 }

@@ -106,7 +106,7 @@ fn setup_ui(
                 );
             }
 
-            if let Space::Square { piece: Some(piece), .. } = space {
+            if let Space::Square { slot: Some(piece), .. } = space {
                 parent.spawn((
                     *piece,
                     Coords { x: x as isize, y: y as isize },
@@ -178,7 +178,7 @@ fn select_piece(
                 
                 if let Some(moves) = possible_moves.0.get(coords) {
                     commands.entity(pa_entity).with_children(|parent| {
-                        for _move in moves {
+                        for move_ in moves {
                             parent.spawn((
                                 Marker,
                                 SpriteBundle {
@@ -188,8 +188,8 @@ fn select_piece(
                                         ..default()
                                     },
                                     transform: Transform::from_translation(Vec3::new(
-                                        _move.target.x as f32 - (bw - 1.) / 2.,
-                                        _move.target.y as f32 - (bh - 1.) / 2.,
+                                        move_.target.x as f32 - (bw - 1.) / 2.,
+                                        move_.target.y as f32 - (bh - 1.) / 2.,
                                         1.
                                     )),
                                     texture: texture_handles.marker.clone(),
