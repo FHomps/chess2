@@ -13,6 +13,7 @@ pub struct UIPlugin;
 impl Plugin for UIPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(SelectedPiece::default())
+            .insert_resource(PromotionSelection::default())
             .add_startup_system(init_ui.in_set(GameSet::UISetup))
             .add_system(
                 update_transform_cache
@@ -62,6 +63,21 @@ struct Marker;
 #[derive(Resource, Deref, DerefMut)]
 struct MarkerTexture(Handle<Image>);
 
+#[derive(Resource, Default)]
+struct PromotionSelection {
+    // There is only Some(Move) while a promotion is being actively chosen
+    pub move_: Option<Move>,
+    pub side: Side
+}
+
+#[derive(Component)]
+struct PromotionPopup;
+
+#[derive(Resource, Deref, DerefMut)]
+struct PromotionPopupTexture(Handle<Image>);
+
+#[derive(Component, Deref, DerefMut)]
+struct PromotionChoice(PieceModel);
 
 fn update_board_display(
     mut commands: Commands,
@@ -87,49 +103,51 @@ fn update_board_display(
         }
     }
 
-    for ((x, y), space) in board.spaces.indexed_iter() {
-        if *space != Space::Hole {
-            commands.spawn((
-                Square,
-                SpriteBundle {
-                    sprite: Sprite {
-                        color: if (x + y) % 2 == 0 {
-                            Color::rgb(0.2, 0.3, 0.4)
-                        } else {
-                            Color::rgb(0.8, 0.8, 0.8)
+    commands.entity(pa_entity).with_children(|parent| {
+        for ((x, y), space) in board.spaces.indexed_iter() {
+            if *space != Space::Hole {
+                parent.spawn((
+                    Square,
+                    SpriteBundle {
+                        sprite: Sprite {
+                            color: if (x + y) % 2 == 0 {
+                                Color::rgb(0.2, 0.3, 0.4)
+                            } else {
+                                Color::rgb(0.8, 0.8, 0.8)
+                            },
+                            custom_size: Some(Vec2::ONE),
+                            ..default()
                         },
-                        custom_size: Some(Vec2::ONE),
+                        transform: Transform::from_translation(Vec3::new(x as f32, y as f32, 1.)),
+                        ..default()
+                    }
+                ));
+            }
+    
+            if let Space::Square { slot: Some(piece), .. } = space
+            {
+                parent.spawn((
+                    *piece,
+                    Coords {
+                        x: x as isize,
+                        y: y as isize,
+                    },
+                    SpriteSheetBundle {
+                        texture_atlas: piece_atlas.clone(),
+                        sprite: TextureAtlasSprite {
+                            index: piece.texture_index(),
+                            custom_size: Some(Vec2::ONE),
+                            ..default()
+                        },
+                        transform: Transform::from_translation(Vec3::new(
+                            x as f32, y as f32, 2.,
+                        )),
                         ..default()
                     },
-                    transform: Transform::from_translation(Vec3::new(x as f32, y as f32, 1.)),
-                    ..default()
-                }
-            )).set_parent(pa_entity);
+                ));
+            }
         }
-
-        if let Space::Square { slot: Some(piece), .. } = space
-        {
-            commands.spawn((
-                *piece,
-                Coords {
-                    x: x as isize,
-                    y: y as isize,
-                },
-                SpriteSheetBundle {
-                    texture_atlas: piece_atlas.clone(),
-                    sprite: TextureAtlasSprite {
-                        index: piece.texture_index(),
-                        custom_size: Some(Vec2::ONE),
-                        ..default()
-                    },
-                    transform: Transform::from_translation(Vec3::new(
-                        x as f32, y as f32, 2.,
-                    )),
-                    ..default()
-                },
-            )).set_parent(pa_entity);
-        }
-    }
+    });
 }
 
 fn init_ui(
@@ -149,6 +167,8 @@ fn init_ui(
     ))));
 
     commands.insert_resource(MarkerTexture(asset_server.load("marker.png")));
+
+    commands.insert_resource(PromotionPopupTexture(asset_server.load("promotion_popup.png")));
 
     commands.spawn((
         Background,
@@ -171,12 +191,17 @@ fn move_piece(
     windows: Query<&Window>,
     buttons: Res<Input<MouseButton>>,
     play_area: Query<(Entity, &InverseGTransformCache), With<PlayArea>>,
-    mut displayed_pieces: Query<(Entity, &Piece, &mut Transform, &Coords)>,
+    mut displayed_pieces: Query<(Entity, &Piece, &mut Transform, &Coords), Without<PromotionChoice>>,
     mut selected: ResMut<SelectedPiece>,
     markers: Query<Entity, With<Marker>>,
     marker_texture: Res<MarkerTexture>,
     mut history: ResMut<TurnHistory>,
     mut displayed_turn_idx: ResMut<DisplayedTurn>,
+    mut promotion_selection: ResMut<PromotionSelection>,
+    promotion_popup_texture: Res<PromotionPopupTexture>,
+    piece_atlas: Res<PieceAtlas>,
+    promotion_choices: Query<(&PromotionChoice, &Transform)>,
+    promotion_graphics: Query<Entity, Or<(With<PromotionPopup>, With<PromotionChoice>)>>
 ) {
     let Some(displayed_turn @ Turn { board: displayed_board, .. }) = history.get(**displayed_turn_idx)
     else { eprintln!("select_piece: could not find current turn"); return };
@@ -197,7 +222,38 @@ fn move_piece(
         y: mouse_pos.y.round() as isize,
     };
 
-    if buttons.just_pressed(MouseButton::Left) {
+    if let Some(ref mut prom_move) = promotion_selection.move_ {
+        if buttons.just_released(MouseButton::Left) {
+            for (PromotionChoice(model), choice_transform) in promotion_choices.iter() {
+                if Vec2::distance(choice_transform.translation.truncate(),  mouse_pos.truncate()) < 0.5 {
+                    prom_move.promotion = Some(*model);
+
+                    let new_board = get_next_board(displayed_board, prom_move);
+
+                    let new_turn = Turn {
+                        previous_move: *prom_move,
+                        possible_moves: compute_possible_moves(&new_board, true),
+                        board: new_board
+                    };
+                    
+                    history.truncate(**displayed_turn_idx + 1);
+
+                    history.push_back(new_turn);
+
+                    **displayed_turn_idx += 1;
+                    
+                    for entity in promotion_graphics.iter() {
+                        commands.entity(entity).despawn();
+                    }
+
+                    promotion_selection.move_ = None;
+                    
+                    break;
+                }
+            }
+        }
+    }
+    else if buttons.just_pressed(MouseButton::Left) {
         // Get the movable piece at mouse position if it exists
         if let Some((piece_entity, piece, mut piece_transform, piece_coords)) = displayed_pieces
             .iter_mut()
@@ -274,28 +330,6 @@ fn move_piece(
         }
         // A piece is being released
         else if buttons.just_released(MouseButton::Left) {
-            // Add a turn to the turn history if the move is valid
-            // All graphical updates will be handled later by update_board_display
-            if let Ok((_, _, _, piece_coords)) = displayed_pieces.get(piece_entity) {
-                if let Some(piece_moves) = displayed_turn.possible_moves.get(piece_coords) {
-                    if let Some(selected_move) = piece_moves.iter().find(|move_| { move_.target == mouse_coords }) {
-                        let new_board = get_next_board(displayed_board, selected_move);
-
-                        let new_turn = Turn {
-                            previous_move: *selected_move,
-                            possible_moves: compute_possible_moves(&new_board, true),
-                            board: new_board
-                        };
-                        
-                        history.truncate(**displayed_turn_idx + 1);
-
-                        history.push_back(new_turn);
-
-                        **displayed_turn_idx += 1;
-                    }
-                }
-            }
-
             // Reset piece position
             if let Ok((_, _, mut piece_transform, piece_coords)) = displayed_pieces.get_mut(piece_entity) {
                 piece_transform.translation = Vec3::new(piece_coords.x as f32, piece_coords.y as f32, 2.);
@@ -311,6 +345,99 @@ fn move_piece(
                     ec.despawn()
                 }
             });
+
+            if let Ok((_, piece, _, piece_coords)) = displayed_pieces.get(piece_entity) {
+                if let Some(piece_moves) = displayed_turn.possible_moves.get(piece_coords) {
+                    let selected_moves: Vec<_> = piece_moves
+                        .iter()
+                        .filter(|move_| {
+                            move_.target == mouse_coords
+                        })
+                        .collect();
+                    
+                    if !selected_moves.is_empty() {
+                        // Put up a popup for promotions
+                        if selected_moves.iter().all(|move_| move_.promotion.is_some()) {
+                            promotion_selection.move_ = Some(Move {
+                                promotion: None,
+                                ..**selected_moves.first().unwrap()
+                            });
+
+                            commands.entity(piece_entity).despawn();
+                            
+                            commands.entity(pa_entity).with_children(|parent| {
+                                let target = selected_moves.first().unwrap().target;
+
+                                parent.spawn((
+                                    PromotionPopup,
+                                    SpriteBundle {
+                                        sprite: Sprite {
+                                            color: Color::rgb(0.82, 0.63, 0.51),
+                                            custom_size: Some(Vec2 { x: 4.078, y: 1.078 }),
+                                            ..default()
+                                        },
+                                        transform: Transform::from_translation(Vec3::new(
+                                            target.x as f32, target.y as f32, 3.,
+                                        )),
+                                        texture: promotion_popup_texture.clone(),
+                                        ..default()
+                                    },
+                                ));
+                                
+                                let mut choice_x = target.x as f32 - (selected_moves.len() - 1) as f32 / 2.;
+
+                                for move_ in selected_moves {
+                                    let model = move_.promotion.unwrap();
+
+                                    parent.spawn((
+                                        PromotionChoice(model),
+                                        SpriteSheetBundle {
+                                            texture_atlas: piece_atlas.clone(),
+                                            sprite: TextureAtlasSprite {
+                                                index: Piece {
+                                                    model,
+                                                    side: piece.side
+                                                }.texture_index(),
+                                                custom_size: Some(Vec2::ONE),
+                                                ..default()
+                                            },
+                                            transform: Transform::from_translation(Vec3::new(
+                                                choice_x, target.y as f32, 4.,
+                                            )),
+                                            ..default()
+                                        },
+                                    ));
+
+                                    choice_x += 1.0;
+                                }
+
+                            });
+                        }
+                        // Add a turn to the turn history if a valid move has been played
+                        // All graphical updates will be handled later by update_board_display
+                        else if selected_moves.len() == 1 {
+                            let selected_move = selected_moves.first().unwrap();
+
+                            let new_board = get_next_board(displayed_board, selected_move);
+
+                            let new_turn = Turn {
+                                previous_move: **selected_move,
+                                possible_moves: compute_possible_moves(&new_board, true),
+                                board: new_board
+                            };
+                            
+                            history.truncate(**displayed_turn_idx + 1);
+
+                            history.push_back(new_turn);
+
+                            **displayed_turn_idx += 1;
+                        }
+                        else {
+                            eprintln!("move_piece: mix of promotion and non-promotion moves");
+                        }
+                    }
+                }
+            }
         }
     }
 }

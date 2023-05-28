@@ -482,31 +482,31 @@ pub fn compute_possible_moves(board: &Board, filter_checks: bool) -> HashMap<Coo
                                     promotion: None,
                                 });
                             }
+                        }
 
-                            for ep_target in [Coords { x: x - 1, y }, Coords { x: x + 1, y }] {
-                                if let Some(Square {
-                                    slot:
-                                        Some(Piece {
-                                            side: target_side,
-                                            model:
-                                                Pawn {
-                                                    just_dashed: true, ..
-                                                },
-                                        }),
-                                    ..
-                                }) = board.spaces.get(ep_target)
-                                {
-                                    if board.side != *target_side {
-                                        push_with_promotions(Move {
-                                            source: coords,
-                                            target: Coords {
-                                                x: ep_target.x,
-                                                y: y + y_dir,
+                        for ep_target in [Coords { x: x - 1, y }, Coords { x: x + 1, y }] {
+                            if let Some(Square {
+                                slot:
+                                    Some(Piece {
+                                        side: target_side,
+                                        model:
+                                            Pawn {
+                                                just_dashed: true, ..
                                             },
-                                            kind: MoveKind::EnPassant,
-                                            promotion: None,
-                                        });
-                                    }
+                                    }),
+                                ..
+                            }) = board.spaces.get(ep_target)
+                            {
+                                if board.side != *target_side {
+                                    push_with_promotions(Move {
+                                        source: coords,
+                                        target: Coords {
+                                            x: ep_target.x,
+                                            y: y + y_dir,
+                                        },
+                                        kind: MoveKind::EnPassant,
+                                        promotion: None,
+                                    });
                                 }
                             }
                         }

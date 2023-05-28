@@ -14,11 +14,11 @@ const BOARD_STR: &str = "
 rnbqkbnr
 pppppppp
 ________
-___XX_Q_
+___XX___
 ___XX___
 ________
-PP___r_P
-R___K__R
+PPPPPPPP
+RNBQKBNR
 ";
 
 const PROM_STR: &str = "
