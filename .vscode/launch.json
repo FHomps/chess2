@@ -1,0 +1,50 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'chess2'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=chess2",
+                    "--package=chess2"
+                ],
+                "filter": {
+                    "name": "chess2",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "CARGO_MANIFEST_DIR": "${workspaceFolder}",
+                "PATH": "${env:USERPROFILE}/.rustup/toolchains/stable-x86_64-pc-windows-msvc/bin;${workspaceFolder}/target/debug/deps;${env:PATH}",
+            }
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'chess2'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=chess2",
+                    "--package=chess2"
+                ],
+                "filter": {
+                    "name": "chess2",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "CARGO_MANIFEST_DIR": "${workspaceFolder}",
+                "PATH": "${env:USERPROFILE}/.rustup/toolchains/stable-x86_64-pc-windows-msvc/bin;${workspaceFolder}/target/debug/deps;${env:PATH}",
+            }
+        }
+    ]
+}

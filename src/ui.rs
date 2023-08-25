@@ -14,13 +14,12 @@ impl Plugin for UIPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(SelectedPiece::default())
             .insert_resource(PromotionSelection::default())
-            .add_startup_system(init_ui.in_set(GameSet::UISetup))
-            .add_system(
+            .add_systems(Startup, init_ui.in_set(GameSet::UISetup))
+            .add_systems(PostUpdate,
                 update_transform_cache
-                    .in_base_set(CoreSet::PostUpdate)
                     .after(TransformSystem::TransformPropagate),
             )
-            .add_systems((
+            .add_systems(Update, (
                 move_piece,
                 update_board_display,
                 handle_window_resize
@@ -66,8 +65,7 @@ struct MarkerTexture(Handle<Image>);
 #[derive(Resource, Default)]
 struct PromotionSelection {
     // There is only Some(Move) while a promotion is being actively chosen
-    pub move_: Option<Move>,
-    pub side: Side
+    pub move_: Option<Move>
 }
 
 #[derive(Component)]
@@ -212,7 +210,7 @@ fn move_piece(
         let Ok(window) = windows.get_single() else { eprintln!("select_piece: Could not fetch window"); return };
         let Some(mut pos) = window.cursor_position() else { return };
         pos.x -= window.width() / 2.;
-        pos.y -= window.height() / 2.;
+        pos.y = window.height() / 2. - pos.y;
 
         pa_inv_matrix.transform_point3(pos.extend(0.))
     };
@@ -221,6 +219,7 @@ fn move_piece(
         x: mouse_pos.x.round() as isize,
         y: mouse_pos.y.round() as isize,
     };
+
 
     if let Some(ref mut prom_move) = promotion_selection.move_ {
         if buttons.just_released(MouseButton::Left) {

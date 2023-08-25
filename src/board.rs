@@ -98,7 +98,7 @@ pub struct Board {
 
 impl Board {
     pub fn from_strings<'a>(board_string: &'a str, promotion_string: &'a str) -> Self {
-        let byte_rows = |s: &'a str| {
+        let get_byte_rows = |s: &'a str| {
             assert!(s.is_ascii(), "Non-ASCII characters in board strings");
             s.lines()
                 .rev()
@@ -107,7 +107,7 @@ impl Board {
                 .map(|row| row.as_bytes())
         };
 
-        let (b_rows, p_rows) = (byte_rows(board_string), byte_rows(promotion_string));
+        let (b_rows, p_rows) = (get_byte_rows(board_string), get_byte_rows(promotion_string));
         let bh = b_rows.clone().count();
         assert_eq!(
             bh,
@@ -129,7 +129,7 @@ impl Board {
 
         Board {
             spaces: Array2::from_shape_vec(
-                (bw, bh),
+                (bh, bw),
                 rows.flat_map(|(b_row, p_row)| {
                     b_row
                         .iter()

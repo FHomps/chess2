@@ -47,11 +47,14 @@ fn setup_initial_board(mut history: ResMut<TurnHistory>) {
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(SetsPlugin)
-        .add_plugin(UIPlugin)
-        .add_plugin(LogicPlugin)
-        .add_plugin(TurnsPlugin)
-        .add_startup_system(setup_initial_board.in_set(GameSet::BoardSetup))
+    
+        .add_plugins((
+            DefaultPlugins,
+            SetsPlugin,
+            UIPlugin,
+            LogicPlugin,
+            TurnsPlugin
+        ))
+        .add_systems(Startup, setup_initial_board.in_set(GameSet::BoardSetup))
         .run();
 }
