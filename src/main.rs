@@ -15,7 +15,6 @@ rnbqkbnr
 pppppppp
 ________
 ___XX___
-___XX___
 ________
 PPPPPPPP
 RNBQKBNR
@@ -25,7 +24,6 @@ const PROM_STR: &str = "
 WWWWWWWW
 ________
 ________
-___XX___
 ___XX___
 ________
 ________
@@ -49,7 +47,17 @@ fn main() {
     App::new()
     
         .add_plugins((
-            DefaultPlugins,
+            DefaultPlugins.set(
+                WindowPlugin {
+                    primary_window: Some(Window {
+                        canvas: Some(String::from("#bevy_game")),
+                        fit_canvas_to_parent: true,
+                        prevent_default_event_handling: false,
+                        ..default()
+                    }),
+                    ..default()
+                }
+            ),
             SetsPlugin,
             UIPlugin,
             LogicPlugin,

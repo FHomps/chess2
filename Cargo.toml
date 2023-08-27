@@ -4,8 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = { version = "0.11", features = ["dynamic_linking", "jpeg"] }
 ndarray = "0.15"
+
+[dependencies.bevy]
+version = "0.11"
+features = [
+  "jpeg"
+]
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies.bevy]
+version = "0.11"
+features = ["dynamic_linking"]
 
 [profile.dev]
 opt-level = 3

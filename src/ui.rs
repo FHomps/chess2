@@ -20,8 +20,10 @@ impl Plugin for UIPlugin {
                     .after(TransformSystem::TransformPropagate),
             )
             .add_systems(Update, (
-                move_piece,
-                update_board_display,
+                (
+                    move_piece,
+                    update_board_display
+                ).chain(),
                 handle_window_resize
             ));
     }
