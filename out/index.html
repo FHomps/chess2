@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
   <head>
     <meta charset="UTF-8" />
@@ -28,7 +29,9 @@
     </canvas>
   </body>
   <script type="module">
-    import init from './chess2.js'
-    init()
+    import init, { greet, main } from './chess2.js';
+    await init()
+    greet()
+    main()
   </script>
 </html>

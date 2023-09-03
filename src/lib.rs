@@ -9,6 +9,7 @@ use logic::*;
 mod turns;
 use bevy::prelude::*;
 use turns::*;
+use wasm_bindgen::prelude::*;
 
 const BOARD_STR: &str = "
 rnbqkbnr
@@ -43,7 +44,18 @@ fn setup_initial_board(mut history: ResMut<TurnHistory>) {
     });
 }
 
-fn main() {
+#[wasm_bindgen]
+extern "C" {
+    fn alert(s: &str);
+}
+
+#[wasm_bindgen]
+pub fn greet() {
+    alert("Hello world!");
+}
+
+#[wasm_bindgen]
+pub fn main() {
     App::new()
     
         .add_plugins((
