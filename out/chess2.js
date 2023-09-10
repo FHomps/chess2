@@ -234,12 +234,7 @@ function __wbg_adapter_60(arg0, arg1, arg2) {
     wasm._dyn_core__ops__function__FnMut__A____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h4aaa568f07e06f33(arg0, arg1, addHeapObject(arg2));
 }
 
-/**
-*/
-export function greet() {
-    wasm.greet();
-}
-
+function notDefined(what) { return () => { throw new Error(`${what} is not defined`); }; }
 /**
 */
 export function main() {
@@ -321,9 +316,7 @@ async function __wbg_load(module, imports) {
 function __wbg_get_imports() {
     const imports = {};
     imports.wbg = {};
-    imports.wbg.__wbg_alert_67c9ffb0fbd010d2 = function(arg0, arg1) {
-        alert(getStringFromWasm0(arg0, arg1));
-    };
+    imports.wbg.__wbg_greet_62ee9b36f7126d0c = typeof greet == 'function' ? greet : notDefined('greet');
     imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
         takeObject(arg0);
     };

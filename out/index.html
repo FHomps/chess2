@@ -25,13 +25,18 @@
     </style>
   </head>
   <body>
+    <button onclick="greet()">PRESS ME SEYMOUR</button>
     <canvas id="bevy_game">
     </canvas>
   </body>
   <script type="module">
-    import init, { greet, main } from './chess2.js';
+    import init, { main } from './chess2.js';
     await init()
-    greet()
     main()
+  </script>
+  <script>
+    function greet() {
+      alert("A move has been played!")
+    }
   </script>
 </html>

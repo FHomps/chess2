@@ -4,6 +4,14 @@ use crate::logic::*;
 use crate::sets::*;
 use crate::turns::*;
 use bevy::{prelude::*, transform::TransformSystem, window::WindowResized};
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+extern "C" {
+    fn alert(s: &str);
+
+    fn greet();
+}
 
 const BG_TEX_SIZE: Vec2 = Vec2::new(2560., 1587.);
 const PIECE_TEX_SIZE: f32 = 256.;
@@ -432,6 +440,8 @@ fn move_piece(
                             history.push_back(new_turn);
 
                             **displayed_turn_idx += 1;
+
+                            greet();
                         }
                         else {
                             eprintln!("move_piece: mix of promotion and non-promotion moves");

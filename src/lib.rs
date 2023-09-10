@@ -45,16 +45,6 @@ fn setup_initial_board(mut history: ResMut<TurnHistory>) {
 }
 
 #[wasm_bindgen]
-extern "C" {
-    fn alert(s: &str);
-}
-
-#[wasm_bindgen]
-pub fn greet() {
-    alert("Hello world!");
-}
-
-#[wasm_bindgen]
 pub fn main() {
     App::new()
     
