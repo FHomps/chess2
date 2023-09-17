@@ -44,7 +44,6 @@ fn setup_initial_board(mut history: ResMut<TurnHistory>) {
     });
 }
 
-#[wasm_bindgen]
 pub fn main() {
     App::new()
     

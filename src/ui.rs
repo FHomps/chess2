@@ -11,6 +11,9 @@ extern "C" {
     fn alert(s: &str);
 
     fn greet();
+
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
 }
 
 const BG_TEX_SIZE: Vec2 = Vec2::new(2560., 1587.);
