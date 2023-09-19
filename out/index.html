@@ -29,19 +29,19 @@
     <div style="margin: 1em 2em; display: flex; flex-direction: column; gap: .5em;">
       <div class="controls">
         <div>Board layout: </div>
-        <select>
-          <option>Standard</option>
-          <option>The Hole</option>
-          <option>Close-up</option>
-          <option>Marathon</option>
-          <option>Custom</option>
+        <select id="layout_select">
+          <option value="standard">Standard</option>
+          <option value="hole">The Hole</option>
+          <option value="closeup">Close-up</option>
+          <option value="marathon">Marathon</option>
+          <option value="custom">Custom</option>
         </select>
         <button>Load layout</button>
         <button>Export layout</button>
       </div>
       <div class="controls">
-        <textarea title="Pieces"></textarea>
-        <textarea title="Promotions"></textarea>
+        <textarea id="pieces_ta" title="Pieces"></textarea>
+        <textarea id="promotions_ta" title="Promotions"></textarea>
       </div>
       <div class="controls">
         <div>Bottom side: </div>
@@ -63,5 +63,104 @@
   </script>
   <script>
     function greet() {}
+
+    let pieces = {
+      "standard": `\
+rnbqkbnr
+pppppppp
+________
+________
+________
+________
+PPPPPPPP
+RNBQKBNR`,
+      "hole": `\
+rnbqkbnr
+pppppppp
+________
+___XX___
+___XX___
+________
+PPPPPPPP
+RNBQKBNR`,
+      "closeup": `\
+rnbqkbnr
+pppppppp
+________
+________
+________
+PPPPPPPP
+RNBQKBNR`,
+      "marathon": `\
+rnbqkbnr
+pppppppp
+________
+________
+________
+________
+________
+PPPPPPPP
+RNBQKBNR`,
+      "custom": ""
+    }
+
+    let promotions = {
+      "standard": `\
+WWWWWWWW
+________
+________
+________
+________
+________
+________
+bbbbbbbb`,
+      "hole": `\
+WWWWWWWW
+________
+________
+___XX___
+___XX___
+________
+________
+bbbbbbbb`,
+      "closeup": `\
+WWWWWWWW
+________
+________
+________
+________
+________
+bbbbbbbb`,
+      "marathon": `\
+WWWWWWWW
+________
+________
+________
+________
+________
+________
+________
+bbbbbbbb`,
+      "custom": ""
+    }
+
+    let layout_select = document.getElementById("layout_select")
+    let pieces_ta = document.getElementById("pieces_ta")
+    let promotions_ta = document.getElementById("promotions_ta")
+
+    layout_select.onchange = function() {
+      let selected = layout_select.value
+      pieces_ta.value = pieces[selected]
+      promotions_ta.value = promotions[selected]
+    }
+    layout_select.onchange()
+
+    pieces_ta.onchange = function() {
+      pieces[layout_select.value] = pieces_ta.value
+    }
+
+    promotions_ta.onchange = function() {
+      promotions[layout_select.value] = promotions_ta.value
+    }
   </script>
 </html>
