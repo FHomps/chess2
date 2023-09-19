@@ -10,8 +10,6 @@
       }
 
       #bevy_game {
-        width: 100vw!important;
-        height: 100vh!important;
         background-color: grey;
       }
 
@@ -54,8 +52,10 @@
       </div>
       <button>Restart Game</button>
     </div>
-    <canvas id="bevy_game">
-    </canvas>
+    <div style="width: 100vw; height: 100vh">
+      <canvas id="bevy_game">
+      </canvas>
+    </div>
   </body>
   <script type="module">
     import init from './chess2.js';
