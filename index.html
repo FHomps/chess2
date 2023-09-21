@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Chess 2</title>
+    <link data-trunk rel="css" href="css/index.css">
+    <link data-trunk rel="copy-dir" href="assets">
+  </head>
+  <body>
+    <div style="margin: 1em 2em; display: flex; flex-direction: column; gap: .5em;">
+      <div class="controls">
+        <div>Board layout: </div>
+        <select id="layout_select">
+          <option value="standard">Standard</option>
+          <option value="hole">The Hole</option>
+          <option value="closeup">Close-up</option>
+          <option value="marathon">Marathon</option>
+          <option value="custom">Custom</option>
+        </select>
+        <button>Load layout</button>
+        <button>Export layout</button>
+      </div>
+      <div class="controls">
+        <textarea id="pieces_ta" title="Pieces"></textarea>
+        <textarea id="promotions_ta" title="Promotions"></textarea>
+      </div>
+      <div class="controls">
+        <div>Bottom side: </div>
+        <select>
+          <option>White</option>
+          <option>Black</option>
+        </select>
+      </div>
+      <button>Restart Game</button>
+    </div>
+    <div style="width: 100vw; height: 100vh">
+      <canvas id="bevy_game">
+      </canvas>
+    </div>
+  </body>
+  <script type="module">
+    import init from './chess2.js';
+    init()
+  </script>
+  <script data-trunk src="js/index.js"></script>
+</html>
