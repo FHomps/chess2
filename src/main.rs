@@ -44,10 +44,6 @@ fn setup_initial_board(mut history: ResMut<TurnHistory>) {
 }
 
 pub fn main() {
-    // When building for WASM, print panics to the browser console
-    #[cfg(target_arch = "wasm32")]
-    console_error_panic_hook::set_once();
-
     App::new()
         .add_plugins((
             DefaultPlugins.set(

@@ -1,0 +1,5 @@
+linker = "rust-lld.exe"
+rustflags = ["-Zshare-generics=n"]
+
+[build]
+target = "wasm32-unknown-unknown"
