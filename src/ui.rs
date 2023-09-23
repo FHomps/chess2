@@ -24,7 +24,8 @@ impl Plugin for UIPlugin {
                     move_piece,
                     update_board_display
                 ).chain(),
-                handle_window_resize
+                handle_window_resize,
+                handle_board_resize
             ));
     }
 }
@@ -451,6 +452,40 @@ fn update_transform_cache(
     cache.matrix = transform.compute_matrix().inverse();
 }
 
+fn resize_elements(
+    ww: f32,
+    wh: f32,
+    set: &mut ParamSet<(
+        Query<&mut Transform, With<Background>>,
+        Query<&mut Transform, With<PlayArea>>,
+    )>,
+    board: &Board
+) {
+    let (bw, bh) = board.spaces.dim();
+    let (bw, bh) = (bw as f32, bh as f32);
+
+    // Resize the background so that it always fully covers the window
+    if let Ok(mut transform) = set.p0().get_single_mut() {
+        transform.scale =
+            Vec2::splat(f32::max(ww / BG_TEX_SIZE.x, wh / BG_TEX_SIZE.y)).extend(1.);
+    }
+
+    // Resize the play area so that it is always fully visible
+    if let Ok(mut transform) = set.p1().get_single_mut() {
+        let pa_scale = f32::min(ww / (bw + 2.), wh / (bh + 2.));
+        transform.scale = Vec3 {
+            x: pa_scale,
+            y: pa_scale,
+            z: 1.,
+        };
+        transform.translation = Vec3 {
+            x: -(bw - 1.) / 2. * pa_scale,
+            y: -(bh - 1.) / 2. * pa_scale,
+            z: 0.,
+        };
+    }
+}
+
 fn handle_window_resize(
     mut events: EventReader<WindowResized>,
     mut set: ParamSet<(
@@ -459,31 +494,29 @@ fn handle_window_resize(
     )>,
     history: Res<TurnHistory>,
 ) {
+    let Some(Turn { board, .. }) = history.back() else { eprintln!("handle_window_resize: no board in history"); return };
+
     for event in events.iter() {
-        let Some(Turn { board, .. }) = history.back() else { eprintln!("handle_window_resize: no board in history"); return };
         let (ww, wh) = (event.width as f32, event.height as f32);
-        let (bw, bh) = board.spaces.dim();
-        let (bw, bh) = (bw as f32, bh as f32);
-
-        // Resize the background so that it always fully covers the window
-        if let Ok(mut transform) = set.p0().get_single_mut() {
-            transform.scale =
-                Vec2::splat(f32::max(ww / BG_TEX_SIZE.x, wh / BG_TEX_SIZE.y)).extend(1.);
-        }
-
-        // Resize the play area so that it is always fully visible
-        if let Ok(mut transform) = set.p1().get_single_mut() {
-            let pa_scale = f32::min(ww / (bw + 2.), wh / (bh + 2.));
-            transform.scale = Vec3 {
-                x: pa_scale,
-                y: pa_scale,
-                z: 1.,
-            };
-            transform.translation = Vec3 {
-                x: -(bw - 1.) / 2. * pa_scale,
-                y: -(bh - 1.) / 2. * pa_scale,
-                z: 0.,
-            };
-        }
+        resize_elements(ww, wh, &mut set, board);
     }
+}
+
+fn handle_board_resize(
+    mut set: ParamSet<(
+        Query<&mut Transform, With<Background>>,
+        Query<&mut Transform, With<PlayArea>>,
+    )>,
+    history: Res<TurnHistory>,
+    windows: Query<&Window>
+) {
+    if !history.is_changed() {
+        return;
+    }
+
+    let Ok(window) = windows.get_single() else { eprintln!("select_piece: Could not fetch window"); return };
+    
+    let Some(Turn { board, .. }) = history.back() else { eprintln!("handle_window_resize: no board in history"); return };
+    let (ww, wh) = (window.width() as f32, window.height() as f32);
+    resize_elements(ww, wh, &mut set, board);
 }

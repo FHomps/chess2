@@ -10,29 +10,28 @@ mod turns;
 use bevy::prelude::*;
 use turns::*;
 
-const BOARD_STR: &str = "
-rnbqkbnr
-pppppppp
-________
-___XX___
-________
-PPPPPPPP
-RNBQKBNR
-";
+use wasm_bindgen::prelude::*;
 
-const PROM_STR: &str = "
-WWWWWWWW
-________
-________
-___XX___
-________
-________
-bbbbbbbb
-";
+#[wasm_bindgen]
+extern "C" {
+    fn alert(s: &str);
 
-fn setup_initial_board(mut history: ResMut<TurnHistory>) {
-    let initial_board = Board::from_strings(BOARD_STR, PROM_STR);
+    fn poll_restart() -> bool;
+    fn get_pieces_string() -> String;
+    fn get_promotions_string() -> String;
+    fn get_bottom_side() -> bool;
+}
 
+fn setup_initial_board(
+    mut history: ResMut<TurnHistory>,
+    mut displayed_turn: ResMut<DisplayedTurn>
+) {
+    let initial_board = match Board::from_strings(&get_pieces_string(), &get_promotions_string()) {
+        Ok(board) => board,
+        Err(err_str) => { alert(err_str); return; }
+    };
+
+    history.clear();
     history.push_back(Turn {
         possible_moves: compute_possible_moves(&initial_board, true),
         board: initial_board,
@@ -41,6 +40,14 @@ fn setup_initial_board(mut history: ResMut<TurnHistory>) {
             ..default()
         },
     });
+
+    *displayed_turn = DisplayedTurn(0);
+}
+
+fn poll_js(history: ResMut<TurnHistory>, displayed_turn: ResMut<DisplayedTurn>) {
+    if poll_restart() {
+        setup_initial_board(history, displayed_turn);
+    }
 }
 
 pub fn main() {
@@ -63,5 +70,6 @@ pub fn main() {
             TurnsPlugin
         ))
         .add_systems(Startup, setup_initial_board.in_set(GameSet::BoardSetup))
+        .add_systems(Main, poll_js)
         .run();
 }

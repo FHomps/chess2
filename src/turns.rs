@@ -27,4 +27,4 @@ pub struct Turn {
 pub struct TurnHistory(VecDeque<Turn>);
 
 #[derive(Resource, Default, Deref, DerefMut)]
-pub struct DisplayedTurn(usize);
+pub struct DisplayedTurn(pub usize);

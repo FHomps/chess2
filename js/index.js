@@ -81,6 +81,8 @@ bbbbbbbb`,
 let layout_select = document.getElementById("layout_select")
 let pieces_ta = document.getElementById("pieces_ta")
 let promotions_ta = document.getElementById("promotions_ta")
+let bottom_side_select = document.getElementById("bottom_side_select")
+let restart_button = document.getElementById("restart_button")
 
 layout_select.onchange = function() {
     let selected = layout_select.value
@@ -95,4 +97,29 @@ pieces_ta.onchange = function() {
 
 promotions_ta.onchange = function() {
     promotions[layout_select.value] = promotions_ta.value
+}
+
+let queued_restart = false;
+restart_button.onclick = function() {
+    queued_restart = true;
+}
+
+function poll_restart() {
+    if (queued_restart) {
+        queued_restart = false;
+        return true;
+    }
+    return false;
+}
+
+function get_pieces_string() {
+    return pieces_ta.value;
+}
+
+function get_promotions_string() {
+    return promotions_ta.value;
+}
+
+function get_bottom_side() {
+    return Boolean(bottom_side_select.value);
 }

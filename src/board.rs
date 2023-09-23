@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use core::panic;
 use ndarray::*;
 
 pub struct BoardPlugin;
@@ -97,9 +96,8 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn from_strings<'a>(board_string: &'a str, promotion_string: &'a str) -> Self {
+    pub fn from_strings<'a>(board_string: &'a str, promotion_string: &'a str) -> Result<Self, &'static str> {
         let get_byte_rows = |s: &'a str| {
-            assert!(s.is_ascii(), "Non-ASCII characters in board strings");
             s.lines()
                 .rev()
                 .map(|row| row.trim())
@@ -107,27 +105,30 @@ impl Board {
                 .map(|row| row.as_bytes())
         };
 
+        if !(board_string.is_ascii() && promotion_string.is_ascii()) {
+            return Err("Non-ASCII characters in board strings");
+        }
         let (b_rows, p_rows) = (get_byte_rows(board_string), get_byte_rows(promotion_string));
         let bh = b_rows.clone().count();
-        assert_eq!(
-            bh,
-            p_rows.clone().count(),
-            "Board strings have different row counts"
-        );
+
+        if bh != p_rows.clone().count() {
+            return Err("Board strings have different row counts");
+        }
+            
         let bw = if let Some(first_row) = b_rows.clone().next() {
             first_row.len()
         } else {
-            panic!("Board strings are empty")
+            return Err("Board strings are empty");
         };
 
         let rows = b_rows.zip(p_rows);
-        assert!(
-            rows.clone()
-                .all(|(b_row, p_row)| b_row.len() == bw && b_row.len() == p_row.len()),
-            "Inconsistent row sizes across board strings"
-        );
+        if !rows.clone().all(
+            |(b_row, p_row)| b_row.len() == bw && b_row.len() == p_row.len()
+        ) {
+            return Err("Inconsistent row sizes across board strings");
+        }
 
-        Board {
+        Ok(Board {
             spaces: Array2::from_shape_vec(
                 (bh, bw),
                 rows.flat_map(|(b_row, p_row)| {
@@ -209,6 +210,6 @@ impl Board {
             .reversed_axes(),
             captured: vec![],
             side: White,
-        }
+        })
     }
 }
