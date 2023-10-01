@@ -12,8 +12,8 @@ pub struct UIPlugin;
 
 impl Plugin for UIPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(SelectedPiece::default())
-            .insert_resource(PromotionSelection::default())
+        app.insert_resource(BoardDisplayState::default())
+            .insert_resource(Selections::default())
             .add_systems(Startup, init_ui.in_set(GameSet::UISetup))
             .add_systems(PostUpdate,
                 update_transform_cache
@@ -24,8 +24,7 @@ impl Plugin for UIPlugin {
                     move_piece,
                     update_board_display
                 ).chain(),
-                handle_window_resize,
-                handle_board_resize
+                handle_window_resize
             ));
     }
 }
@@ -34,11 +33,22 @@ impl Plugin for UIPlugin {
 struct Background;
 
 #[derive(Component)]
-struct PlayArea;
+struct Playground;
 
-#[derive(Resource, Deref, DerefMut)]
-struct PieceAtlas(Handle<TextureAtlas>);
+#[derive(Component)]
+struct Square;
 
+#[derive(Component)]
+struct Marker;
+
+#[derive(Component)]
+struct PromotionPopup;
+
+#[derive(Component, Deref, DerefMut)]
+struct PromotionChoice(PieceModel);
+
+// Cache of a Global Transform's inverse matrix
+// Updated automatically through change detection
 // Used to compute where the cursor is relative to a transformed entity
 #[derive(Component)]
 struct InverseGTransformCache {
@@ -53,50 +63,42 @@ impl Default for InverseGTransformCache {
     }
 }
 
-#[derive(Component)]
-struct Square;
-
-#[derive(Resource, Default, Deref, DerefMut)]
-struct SelectedPiece(Option<Entity>);
-
-#[derive(Component)]
-struct Marker;
-
-#[derive(Resource, Deref, DerefMut)]
-struct MarkerTexture(Handle<Image>);
-
 #[derive(Resource, Default)]
-struct PromotionSelection {
-    // There is only Some(Move) while a promotion is being actively chosen
-    pub move_: Option<Move>
+pub struct BoardDisplayState {
+    pub displayed_turn: usize,
+    pub bottom_side: Side,
 }
 
-#[derive(Component)]
-struct PromotionPopup;
+#[derive(Resource, Default)]
+struct Selections {
+    pub piece: Option<Entity>,
+    pub promotion: Option<Move>
+}
 
-#[derive(Resource, Deref, DerefMut)]
-struct PromotionPopupTexture(Handle<Image>);
-
-#[derive(Component, Deref, DerefMut)]
-struct PromotionChoice(PieceModel);
+#[derive(Resource)]
+struct Textures {
+    pub pieces: Handle<TextureAtlas>,
+    pub marker: Handle<Image>,
+    pub promotion_popup: Handle<Image>
+}
 
 fn update_board_display(
     mut commands: Commands,
     mut set: ParamSet<(
-        Query<Entity, With<PlayArea>>,
+        Query<Entity, With<Playground>>,
         Query<Entity, Or<(With<Piece>, With<Square>)>>
     )>,
-    history: Res<TurnHistory>,
-    displayed_turn_idx: Res<DisplayedTurn>,
-    piece_atlas: Res<PieceAtlas>
+    turns: Res<Turns>,
+    display_state: Res<BoardDisplayState>,
+    textures: Res<Textures>
 ) {
-    if !displayed_turn_idx.is_changed() { return; }
+    if !display_state.is_changed() { return; }
 
-    let Some(Turn { board, .. }) = history.get(**displayed_turn_idx)
+    let Some(Turn { board, .. }) = turns.history.get(display_state.displayed_turn)
     else { eprintln!("update_board_display: can't find board to display"); return };
 
-    let Ok(pa_entity) = set.p0().get_single()
-    else { eprintln!("update_board_display: no spawned play area"); return };
+    let Ok(pg_entity) = set.p0().get_single()
+    else { eprintln!("update_board_display: no spawned playground"); return };
 
     for old_entity in set.p1().iter_mut() {
         if let Some(mut ec) = commands.get_entity(old_entity) {
@@ -104,7 +106,7 @@ fn update_board_display(
         }
     }
 
-    commands.entity(pa_entity).with_children(|parent| {
+    commands.entity(pg_entity).with_children(|parent| {
         for ((x, y), space) in board.spaces.indexed_iter() {
             if *space != Space::Hole {
                 parent.spawn((
@@ -134,7 +136,7 @@ fn update_board_display(
                         y: y as isize,
                     },
                     SpriteSheetBundle {
-                        texture_atlas: piece_atlas.clone(),
+                        texture_atlas: textures.pieces.clone(),
                         sprite: TextureAtlasSprite {
                             index: piece.texture_index(),
                             custom_size: Some(Vec2::ONE),
@@ -158,18 +160,18 @@ fn init_ui(
 ) {
     commands.spawn(Camera2dBundle::default());
 
-    commands.insert_resource(PieceAtlas(atlases.add(TextureAtlas::from_grid(
-        asset_server.load("pieces.png"),
-        Vec2::splat(PIECE_TEX_SIZE),
-        6,
-        2,
-        None,
-        None,
-    ))));
-
-    commands.insert_resource(MarkerTexture(asset_server.load("marker.png")));
-
-    commands.insert_resource(PromotionPopupTexture(asset_server.load("promotion_popup.png")));
+    commands.insert_resource(Textures {
+        pieces: atlases.add(TextureAtlas::from_grid(
+            asset_server.load("pieces.png"),
+            Vec2::splat(PIECE_TEX_SIZE),
+            6,
+            2,
+            None,
+            None,
+        )),
+        marker: asset_server.load("marker.png"),
+        promotion_popup: asset_server.load("promotion_popup.png")
+    });
 
     commands.spawn((
         Background,
@@ -180,7 +182,7 @@ fn init_ui(
     ));
 
     commands.spawn((
-        PlayArea,
+        Playground,
         TransformBundle::default(),
         InverseGTransformCache::default(),
         VisibilityBundle::default(),
@@ -189,25 +191,22 @@ fn init_ui(
 
 fn move_piece(
     mut commands: Commands,
+    mut turns: ResMut<Turns>,
+    mut display_state: ResMut<BoardDisplayState>,
+    mut selections: ResMut<Selections>,
+    mut displayed_pieces: Query<(Entity, &Piece, &mut Transform, &Coords), Without<PromotionChoice>>,
     windows: Query<&Window>,
     buttons: Res<Input<MouseButton>>,
-    play_area: Query<(Entity, &InverseGTransformCache), With<PlayArea>>,
-    mut displayed_pieces: Query<(Entity, &Piece, &mut Transform, &Coords), Without<PromotionChoice>>,
-    mut selected: ResMut<SelectedPiece>,
+    playground: Query<(Entity, &InverseGTransformCache), With<Playground>>,
     markers: Query<Entity, With<Marker>>,
-    marker_texture: Res<MarkerTexture>,
-    mut history: ResMut<TurnHistory>,
-    mut displayed_turn_idx: ResMut<DisplayedTurn>,
-    mut promotion_selection: ResMut<PromotionSelection>,
-    promotion_popup_texture: Res<PromotionPopupTexture>,
-    piece_atlas: Res<PieceAtlas>,
+    textures: Res<Textures>,
     promotion_choices: Query<(&PromotionChoice, &Transform)>,
     promotion_graphics: Query<Entity, Or<(With<PromotionPopup>, With<PromotionChoice>)>>
 ) {
-    let Some(displayed_turn @ Turn { board: displayed_board, .. }) = history.get(**displayed_turn_idx)
+    let Some(displayed_turn @ Turn { board: displayed_board, .. }) = turns.history.get(display_state.displayed_turn)
     else { eprintln!("select_piece: could not find current turn"); return };
 
-    let Ok((pa_entity, InverseGTransformCache { matrix: pa_inv_matrix })) = play_area.get_single() else { return };
+    let Ok((pg_entity, InverseGTransformCache { matrix: pg_inv_matrix })) = playground.get_single() else { return };
     
     let mouse_pos = {
         let Ok(window) = windows.get_single() else { eprintln!("select_piece: Could not fetch window"); return };
@@ -215,7 +214,7 @@ fn move_piece(
         pos.x -= window.width() / 2.;
         pos.y = window.height() / 2. - pos.y;
 
-        pa_inv_matrix.transform_point3(pos.extend(0.))
+        pg_inv_matrix.transform_point3(pos.extend(0.))
     };
 
     let mouse_coords = Coords {
@@ -224,7 +223,7 @@ fn move_piece(
     };
 
 
-    if let Some(ref mut prom_move) = promotion_selection.move_ {
+    if let Some(ref mut prom_move) = selections.promotion {
         if buttons.just_released(MouseButton::Left) {
             for (PromotionChoice(model), choice_transform) in promotion_choices.iter() {
                 if Vec2::distance(choice_transform.translation.truncate(),  mouse_pos.truncate()) < 0.5 {
@@ -238,17 +237,17 @@ fn move_piece(
                         board: new_board
                     };
                     
-                    history.truncate(**displayed_turn_idx + 1);
+                    turns.history.truncate(display_state.displayed_turn + 1);
 
-                    history.push_back(new_turn);
+                    turns.history.push_back(new_turn);
 
-                    **displayed_turn_idx += 1;
+                    display_state.displayed_turn += 1;
                     
                     for entity in promotion_graphics.iter() {
                         commands.entity(entity).despawn();
                     }
 
-                    promotion_selection.move_ = None;
+                    selections.promotion = None;
                     
                     break;
                 }
@@ -264,7 +263,7 @@ fn move_piece(
             )
         {
             // Make it the currently selected piece
-            **selected = Some(piece_entity);
+            selections.piece = Some(piece_entity);
 
             // Snap the piece to mouse position
             piece_transform.translation = mouse_pos.truncate().extend(3.);
@@ -272,7 +271,7 @@ fn move_piece(
 
             // Display possible move markers
             if let Some(moves) = displayed_turn.possible_moves.get(piece_coords) {
-                commands.entity(pa_entity).with_children(|parent| {
+                commands.entity(pg_entity).with_children(|parent| {
                     for move_ in moves {
                         parent.spawn((
                             Marker,
@@ -287,7 +286,7 @@ fn move_piece(
                                     move_.target.y as f32,
                                     1.,
                                 )),
-                                texture: marker_texture.clone(),
+                                texture: textures.marker.clone(),
                                 ..default()
                             },
                         ));
@@ -297,7 +296,7 @@ fn move_piece(
 
             // Display promotion squares markers
             if let Piece { model: Pawn { .. }, side } = piece {
-                commands.entity(pa_entity).with_children(|parent| {
+                commands.entity(pg_entity).with_children(|parent| {
                     for ((x, y), space) in displayed_turn.board.spaces.indexed_iter() {
                         if let Space::Square { promotes, .. } = space {
                             if promotes[*side as usize] {
@@ -312,7 +311,7 @@ fn move_piece(
                                         transform: Transform::from_translation(Vec3::new(
                                             x as f32, y as f32, 1.,
                                         )),
-                                        texture: marker_texture.clone(),
+                                        texture: textures.marker.clone(),
                                         ..default()
                                     },
                                 ));
@@ -322,7 +321,7 @@ fn move_piece(
                 });
             }
         }
-    } else if let Some(piece_entity) = **selected {
+    } else if let Some(piece_entity) = selections.piece {
         // A piece is currently grabbed
         if buttons.pressed(MouseButton::Left) {
             if let Ok((_, _, mut piece_transform, _)) = displayed_pieces.get_mut(piece_entity) {
@@ -339,7 +338,7 @@ fn move_piece(
             }
 
             // Reset selection
-            **selected = None;
+            selections.piece = None;
 
             // Stop displaying move markers
             markers.for_each(|marker_entity| {
@@ -350,6 +349,7 @@ fn move_piece(
 
             if let Ok((_, piece, _, piece_coords)) = displayed_pieces.get(piece_entity) {
                 if let Some(piece_moves) = displayed_turn.possible_moves.get(piece_coords) {
+                    // In the case of a promotion, there are multiple selected moves
                     let selected_moves: Vec<_> = piece_moves
                         .iter()
                         .filter(|move_| {
@@ -360,14 +360,14 @@ fn move_piece(
                     if !selected_moves.is_empty() {
                         // Put up a popup for promotions
                         if selected_moves.iter().all(|move_| move_.promotion.is_some()) {
-                            promotion_selection.move_ = Some(Move {
+                            selections.promotion = Some(Move {
                                 promotion: None,
                                 ..**selected_moves.first().unwrap()
                             });
 
                             commands.entity(piece_entity).despawn();
                             
-                            commands.entity(pa_entity).with_children(|parent| {
+                            commands.entity(pg_entity).with_children(|parent| {
                                 let target = selected_moves.first().unwrap().target;
 
                                 parent.spawn((
@@ -381,7 +381,7 @@ fn move_piece(
                                         transform: Transform::from_translation(Vec3::new(
                                             target.x as f32, target.y as f32, 3.,
                                         )),
-                                        texture: promotion_popup_texture.clone(),
+                                        texture: textures.promotion_popup.clone(),
                                         ..default()
                                     },
                                 ));
@@ -394,7 +394,7 @@ fn move_piece(
                                     parent.spawn((
                                         PromotionChoice(model),
                                         SpriteSheetBundle {
-                                            texture_atlas: piece_atlas.clone(),
+                                            texture_atlas: textures.pieces.clone(),
                                             sprite: TextureAtlasSprite {
                                                 index: Piece {
                                                     model,
@@ -428,11 +428,11 @@ fn move_piece(
                                 board: new_board
                             };
                             
-                            history.truncate(**displayed_turn_idx + 1);
+                            turns.history.truncate(display_state.displayed_turn + 1);
 
-                            history.push_back(new_turn);
+                            turns.history.push_back(new_turn);
 
-                            **displayed_turn_idx += 1;
+                            display_state.displayed_turn += 1;
                         }
                         else {
                             eprintln!("move_piece: mix of promotion and non-promotion moves");
@@ -452,12 +452,12 @@ fn update_transform_cache(
     cache.matrix = transform.compute_matrix().inverse();
 }
 
-fn resize_elements(
+fn update_playground_transform(
     ww: f32,
     wh: f32,
     set: &mut ParamSet<(
         Query<&mut Transform, With<Background>>,
-        Query<&mut Transform, With<PlayArea>>,
+        Query<&mut Transform, With<Playground>>,
     )>,
     board: &Board
 ) {
@@ -470,17 +470,17 @@ fn resize_elements(
             Vec2::splat(f32::max(ww / BG_TEX_SIZE.x, wh / BG_TEX_SIZE.y)).extend(1.);
     }
 
-    // Resize the play area so that it is always fully visible
+    // Resize the playground so that it is always fully visible
     if let Ok(mut transform) = set.p1().get_single_mut() {
-        let pa_scale = f32::min(ww / (bw + 2.), wh / (bh + 2.));
+        let pg_scale = f32::min(ww / (bw + 2.), wh / (bh + 2.));
         transform.scale = Vec3 {
-            x: pa_scale,
-            y: pa_scale,
+            x: pg_scale,
+            y: pg_scale,
             z: 1.,
         };
         transform.translation = Vec3 {
-            x: -(bw - 1.) / 2. * pa_scale,
-            y: -(bh - 1.) / 2. * pa_scale,
+            x: -(bw - 1.) / 2. * pg_scale,
+            y: -(bh - 1.) / 2. * pg_scale,
             z: 0.,
         };
     }
@@ -490,33 +490,16 @@ fn handle_window_resize(
     mut events: EventReader<WindowResized>,
     mut set: ParamSet<(
         Query<&mut Transform, With<Background>>,
-        Query<&mut Transform, With<PlayArea>>,
+        Query<&mut Transform, With<Playground>>,
     )>,
-    history: Res<TurnHistory>,
+    turns: Res<Turns>,
+    display_state: Res<BoardDisplayState>,
 ) {
-    let Some(Turn { board, .. }) = history.back() else { eprintln!("handle_window_resize: no board in history"); return };
+    let Some(Turn { board, .. }) = turns.history.get(display_state.displayed_turn)
+    else { eprintln!("handle_window_resize: no board in history"); return };
 
     for event in events.iter() {
         let (ww, wh) = (event.width as f32, event.height as f32);
-        resize_elements(ww, wh, &mut set, board);
+        update_playground_transform(ww, wh, &mut set, board);
     }
-}
-
-fn handle_board_resize(
-    mut set: ParamSet<(
-        Query<&mut Transform, With<Background>>,
-        Query<&mut Transform, With<PlayArea>>,
-    )>,
-    history: Res<TurnHistory>,
-    windows: Query<&Window>
-) {
-    if !history.is_changed() {
-        return;
-    }
-
-    let Ok(window) = windows.get_single() else { eprintln!("select_piece: Could not fetch window"); return };
-    
-    let Some(Turn { board, .. }) = history.back() else { eprintln!("handle_window_resize: no board in history"); return };
-    let (ww, wh) = (window.width() as f32, window.height() as f32);
-    resize_elements(ww, wh, &mut set, board);
 }

@@ -10,8 +10,7 @@ pub struct TurnsPlugin;
 
 impl Plugin for TurnsPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(TurnHistory::default())
-            .insert_resource(DisplayedTurn(0));
+        app.insert_resource(Turns::default());
     }
 }
 
@@ -23,8 +22,7 @@ pub struct Turn {
 }
 
 // Queue of all the turns up to and including the one currently in play
-#[derive(Deref, DerefMut, Resource, Default)]
-pub struct TurnHistory(VecDeque<Turn>);
-
-#[derive(Resource, Default, Deref, DerefMut)]
-pub struct DisplayedTurn(pub usize);
+#[derive(Resource, Default)]
+pub struct Turns {
+    pub history: VecDeque<Turn>
+}
