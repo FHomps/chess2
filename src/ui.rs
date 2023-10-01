@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use crate::board::PieceModel::*;
 use crate::board::*;
 use crate::logic::*;
@@ -24,7 +26,7 @@ impl Plugin for UIPlugin {
                     move_piece,
                     update_board_display
                 ).chain(),
-                handle_window_resize
+                update_playground_transform
             ));
     }
 }
@@ -80,6 +82,42 @@ struct Textures {
     pub pieces: Handle<TextureAtlas>,
     pub marker: Handle<Image>,
     pub promotion_popup: Handle<Image>
+}
+
+fn init_ui(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut atlases: ResMut<Assets<TextureAtlas>>,
+) {
+    commands.spawn(Camera2dBundle::default());
+
+    commands.insert_resource(Textures {
+        pieces: atlases.add(TextureAtlas::from_grid(
+            asset_server.load("pieces.png"),
+            Vec2::splat(PIECE_TEX_SIZE),
+            6,
+            2,
+            None,
+            None,
+        )),
+        marker: asset_server.load("marker.png"),
+        promotion_popup: asset_server.load("promotion_popup.png")
+    });
+
+    commands.spawn((
+        Background,
+        SpriteBundle {
+            texture: asset_server.load("bg.png"),
+            ..default()
+        },
+    ));
+
+    commands.spawn((
+        Playground,
+        TransformBundle::default(),
+        InverseGTransformCache::default(),
+        VisibilityBundle::default(),
+    ));
 }
 
 fn update_board_display(
@@ -144,6 +182,11 @@ fn update_board_display(
                         },
                         transform: Transform::from_translation(Vec3::new(
                             x as f32, y as f32, 2.,
+                        )).with_rotation(Quat::from_rotation_z(
+                            match display_state.bottom_side {
+                                Side::White => 0.,
+                                Side::Black => PI
+                            }
                         )),
                         ..default()
                     },
@@ -151,42 +194,6 @@ fn update_board_display(
             }
         }
     });
-}
-
-fn init_ui(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut atlases: ResMut<Assets<TextureAtlas>>,
-) {
-    commands.spawn(Camera2dBundle::default());
-
-    commands.insert_resource(Textures {
-        pieces: atlases.add(TextureAtlas::from_grid(
-            asset_server.load("pieces.png"),
-            Vec2::splat(PIECE_TEX_SIZE),
-            6,
-            2,
-            None,
-            None,
-        )),
-        marker: asset_server.load("marker.png"),
-        promotion_popup: asset_server.load("promotion_popup.png")
-    });
-
-    commands.spawn((
-        Background,
-        SpriteBundle {
-            texture: asset_server.load("bg.png"),
-            ..default()
-        },
-    ));
-
-    commands.spawn((
-        Playground,
-        TransformBundle::default(),
-        InverseGTransformCache::default(),
-        VisibilityBundle::default(),
-    ));
 }
 
 fn move_piece(
@@ -405,6 +412,11 @@ fn move_piece(
                                             },
                                             transform: Transform::from_translation(Vec3::new(
                                                 choice_x, target.y as f32, 4.,
+                                            )).with_rotation(Quat::from_rotation_z(
+                                                match display_state.bottom_side {
+                                                    Side::White => 0.,
+                                                    Side::Black => PI
+                                                }
                                             )),
                                             ..default()
                                         },
@@ -452,54 +464,71 @@ fn update_transform_cache(
     cache.matrix = transform.compute_matrix().inverse();
 }
 
+// Updates background / playground transforms when the window is resized or the board changes
+// The playground transform is set up so that:
+// - piece positions reflect their coordinates on the board
+//   (with the origin set to the bottom-left square seen from the white side)
+// - pieces have a sprite size of (1.,1.)
 fn update_playground_transform(
-    ww: f32,
-    wh: f32,
-    set: &mut ParamSet<(
-        Query<&mut Transform, With<Background>>,
-        Query<&mut Transform, With<Playground>>,
-    )>,
-    board: &Board
-) {
-    let (bw, bh) = board.spaces.dim();
-    let (bw, bh) = (bw as f32, bh as f32);
-
-    // Resize the background so that it always fully covers the window
-    if let Ok(mut transform) = set.p0().get_single_mut() {
-        transform.scale =
-            Vec2::splat(f32::max(ww / BG_TEX_SIZE.x, wh / BG_TEX_SIZE.y)).extend(1.);
-    }
-
-    // Resize the playground so that it is always fully visible
-    if let Ok(mut transform) = set.p1().get_single_mut() {
-        let pg_scale = f32::min(ww / (bw + 2.), wh / (bh + 2.));
-        transform.scale = Vec3 {
-            x: pg_scale,
-            y: pg_scale,
-            z: 1.,
-        };
-        transform.translation = Vec3 {
-            x: -(bw - 1.) / 2. * pg_scale,
-            y: -(bh - 1.) / 2. * pg_scale,
-            z: 0.,
-        };
-    }
-}
-
-fn handle_window_resize(
-    mut events: EventReader<WindowResized>,
+    mut resize_events: EventReader<WindowResized>,
     mut set: ParamSet<(
         Query<&mut Transform, With<Background>>,
         Query<&mut Transform, With<Playground>>,
     )>,
     turns: Res<Turns>,
     display_state: Res<BoardDisplayState>,
+    windows: Query<&Window>
 ) {
     let Some(Turn { board, .. }) = turns.history.get(display_state.displayed_turn)
-    else { eprintln!("handle_window_resize: no board in history"); return };
+    else { eprintln!("update_playground_transform: no board in history"); return };
 
-    for event in events.iter() {
-        let (ww, wh) = (event.width as f32, event.height as f32);
-        update_playground_transform(ww, wh, &mut set, board);
+    let (bw, bh) = board.spaces.dim();
+    let (bw, bh) = (bw as f32, bh as f32);
+
+    let mut update_transforms = |ww: f32, wh: f32| {
+        // Resize the background so that it always fully covers the window
+        if let Ok(mut transform) = set.p0().get_single_mut() {
+            transform.scale =
+                Vec2::splat(f32::max(ww / BG_TEX_SIZE.x, wh / BG_TEX_SIZE.y)).extend(1.);
+        }
+
+        // Resize the playground so that it is always fully visible
+        if let Ok(mut transform) = set.p1().get_single_mut() {
+            let pg_scale = f32::min(ww / (bw + 2.), wh / (bh + 2.));
+            transform.scale = Vec3 {
+                x: pg_scale,
+                y: pg_scale,
+                z: 1.,
+            };
+
+            if display_state.bottom_side == Side::White {
+                transform.rotation = Quat::IDENTITY;
+                transform.translation = Vec3 {
+                    x: -(bw - 1.) / 2. * pg_scale,
+                    y: -(bh - 1.) / 2. * pg_scale,
+                    z: 0.,
+                };
+            }
+            else {
+                transform.rotation = Quat::from_rotation_z(PI);
+                transform.translation = Vec3 {
+                    x: (bw - 1.) / 2. * pg_scale,
+                    y: (bh - 1.) / 2. * pg_scale,
+                    z: 0.,
+                };
+            }
+            
+        }
+    };
+
+    for event in resize_events.iter() {
+        update_transforms(event.width as f32, event.height as f32);
+    }
+
+    if display_state.is_changed() {
+        let Ok(window) = windows.get_single()
+        else { eprintln!("update_playground_transform: could not fetch window"); return };
+
+        update_transforms(window.width(), window.height());
     }
 }

@@ -40,12 +40,12 @@ fn setup_initial_board(
 
     *display_state = BoardDisplayState {
         displayed_turn: 0,
-        bottom_side: match get_bottom_side() { true => Side::White, false => Side::Black },
+        bottom_side: match get_bottom_side().to_lowercase().as_str() { "white" => Side::White, _ => Side::Black },
         ..default()
     };
 }
 
-fn poll_js(
+fn poll_io(
     turns: ResMut<Turns>,
     display_state: ResMut<BoardDisplayState>
 ) {
@@ -74,6 +74,6 @@ pub fn main() {
             TurnsPlugin
         ))
         .add_systems(Startup, setup_initial_board.in_set(GameSet::BoardSetup))
-        .add_systems(Main, poll_js)
+        .add_systems(Main, poll_io)
         .run();
 }

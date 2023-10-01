@@ -121,5 +121,5 @@ function get_promotions_string() {
 }
 
 function get_bottom_side() {
-    return Boolean(bottom_side_select.value);
+    return bottom_side_select.value;
 }

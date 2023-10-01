@@ -12,5 +12,5 @@ extern "C" {
     pub fn poll_restart() -> bool;
     pub fn get_pieces_string() -> String;
     pub fn get_promotions_string() -> String;
-    pub fn get_bottom_side() -> bool;
+    pub fn get_bottom_side() -> String;
 }

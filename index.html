@@ -5,6 +5,7 @@
     <title>Chess 2</title>
     <link data-trunk rel="css" href="css/index.css">
     <link data-trunk rel="copy-dir" href="assets">
+    <link data-trunk rel="rust" data-wasm-opt="z">
   </head>
   <body>
     <div style="margin: 1em 2em; display: flex; flex-direction: column; gap: .5em;">
@@ -27,8 +28,8 @@
       <div class="controls">
         <div>Bottom side: </div>
         <select id="bottom_side_select">
-          <option value="true">White</option>
-          <option value="false">Black</option>
+          <option value="white">White</option>
+          <option value="black">Black</option>
         </select>
       </div>
       <button id="restart_button">Restart Game</button>

@@ -40,6 +40,6 @@ ________
 bbbbbbbb")
 }
 
-pub fn get_bottom_side() -> bool {
-    true
+pub fn get_bottom_side() -> String {
+    String::from("white")
 }
