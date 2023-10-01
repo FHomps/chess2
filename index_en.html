@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base data-trunk-public-url/>
+    <meta charset="UTF-8" />
+    <title>Chess 2</title>
+    <link data-trunk rel="css" href="css/index.css">
+    <link data-trunk rel="copy-dir" href="assets">
+    <link data-trunk rel="rust" data-wasm-opt="z">
+    <script>window.MSInputMethodContext && document.documentMode && document.write('<script src="https://cdn.jsdelivr.net/gh/nuxodin/ie11CustomProperties@4.1.0/ie11CustomProperties.min.js"><\/script>');</script>
+  </head>
+  <body>
+    <div id="nav_bar">
+      <div id="language_switcher">
+        <a href="/fr/chess2" target="_self"><img src="/assets/shared/flags/flag_fr.png" alt="Version française"></a>
+        <img src="/assets/shared/flags/flag_en.png" alt="English version">
+      </div>
+      <div id=nav_links>
+        <a href="/en/index.html" target="_self">Home</a>
+        <a href="/en/carbon/index.html" target="_self">Carbon</a>
+        <a href="." target="_self">Chess 2</a>
+      </div>
+    </div>
+    <div id="top_banner">
+      <div id="top_banner_center">
+        <picture id="title_pic" alt="Chess2 logo">
+          <img src="/assets/chess2/assets/logo.webp">
+        </picture>
+        <div id="top_banner_text">
+          <h1>Chess 2</h1>
+          <h2>Chess with silly board layouts<br>Made with Rust, Bevy and love</h2>
+        </div>
+      </div>
+      <div></div>
+    </div>
+    <div id="main">
+      <div style="margin: 1em 2em; display: flex; flex-direction: column; gap: .5em;">
+        <div class="controls">
+          <div>Board layout:&nbsp;</div>
+          <select id="layout_select">
+            <option value="standard">Standard</option>
+            <option value="hole">The Hole</option>
+            <option value="closeup">Close-up</option>
+            <option value="marathon">Marathon</option>
+            <option value="custom">Custom</option>
+          </select>
+          <!--button>Load layout</button>
+          <button>Export layout</button-->
+        </div>
+        <div class="controls">
+          <textarea id="pieces_ta" title="Pieces"></textarea>
+          <textarea id="promotions_ta" title="Promotions"></textarea>
+        </div>
+        <div class="controls">
+          <div>Bottom side:&nbsp;</div>
+          <select id="bottom_side_select">
+            <option value="white">White</option>
+            <option value="black">Black</option>
+          </select>
+        </div>
+        <button id="restart_button">Restart Game</button>
+      </div>
+    </div>
+    <div style="width: 100vw; height: 100vh">
+      <canvas id="bevy_game">
+      </canvas>
+    </div>
+  </body>
+  <script data-trunk src="js/index.js"></script>
+</html>

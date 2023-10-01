@@ -1,7 +1,9 @@
-body {
-    background-color: lightgrey;
-    margin: 0;
-    padding: 0;
+@import "/css/home/index.css";
+
+:root {
+    --bg_color_dark: #323c50;
+    --bg_color_light: #1e5e77;
+    --bg_color_lighter: #7194a0;
 }
 
 #bevy_game {

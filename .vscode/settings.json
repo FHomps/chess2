@@ -4,5 +4,7 @@
         ".\\Cargo.toml",
         ".\\Cargo.toml"
     ],
-    "rust-analyzer.showUnlinkedFileNotification": false
+    "rust-analyzer.showUnlinkedFileNotification": false,
+    "liveServer.settings.root": "/dist/",
+    "liveServer.settings.file": "/assets/chess2/index.html"
 }

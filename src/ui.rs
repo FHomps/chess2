@@ -107,7 +107,7 @@ fn init_ui(
     commands.spawn((
         Background,
         SpriteBundle {
-            texture: asset_server.load("bg.png"),
+            texture: asset_server.load("bg.webp"),
             ..default()
         },
     ));
