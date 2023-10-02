@@ -56,6 +56,24 @@ pub fn get_next_board(board: &Board, move_: &Move) -> Board {
 
     next_board.side = board.side.other();
 
+    // Remove en-passant possibilities for pawns that dashed the previous turn
+    for space in &mut next_board.spaces {
+        if let Space::Square {
+            slot: Some(Piece {
+                model: PieceModel::Pawn { 
+                    just_dashed,
+                    ..
+                },
+                side
+            }),
+            ..
+        } = space {
+            if *side == board.side.other() {
+                *just_dashed = false;
+            }
+        }
+    }
+
     if move_.kind == MoveKind::Skip {
         return next_board;
     }

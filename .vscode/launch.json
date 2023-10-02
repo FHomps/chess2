@@ -10,7 +10,7 @@
                     "build",
                     "--bin=chess2",
                     "--package=chess2",
-                    "--target=wasm32-unknown-unknown"
+                    "--target=x86_64-pc-windows-msvc"
                 ],
                 "filter": {
                     "name": "chess2",
