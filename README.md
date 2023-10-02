@@ -1,7 +1,9 @@
 # chess2
 
-A web-based client-side chess game with an arbitrary board layout, whcih may be of any size and contain any number of holes.
+A web-based client-side chess game with an arbitrary board layout, which may be of any size and contain any number of holes.
+
 Pet project to get familiar with Rust, Bevy and WebAssembly.
+
 Currently only features over-the-board play.
 
 ## [Try it out on my website!](https://francois.homps.fr/en/chess2/)
