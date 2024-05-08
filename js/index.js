@@ -44,6 +44,15 @@ ________XX________
 ________XX________
 PPPPPPPPXXPPPPPPPP
 RNBQKBNRXXRNBQKBNR`,
+    "secret_passage": `\
+__rnbqkbnr__
+_XppppppppX_
+_X________X_
+_X________X_
+_X________X_
+_X________X_
+_XPPPPPPPPX_
+__RNBQKBNR__`,
     "custom": ""
 }
 
@@ -93,6 +102,15 @@ ________XX________
 ________XX________
 ________XX________
 bbbbbbbbXXbbbbbbbb`,
+    "secret_passage": `\
+_WWWWWWWWWW_
+_X________X_
+_X________X_
+_X________X_
+_X________X_
+_X________X_
+_X________X_
+_bbbbbbbbbb_`,
     "custom": ""
 }
 
