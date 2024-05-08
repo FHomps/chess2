@@ -56,7 +56,7 @@ pub fn get_next_board(board: &Board, move_: &Move) -> Board {
 
     next_board.side = board.side.other();
 
-    // Remove en-passant possibilities for pawns that dashed the previous turn
+    // Set just_dashed to false to remove en-passant eligibility of pawns that dashed more than a turn ago
     for space in &mut next_board.spaces {
         if let Space::Square {
             slot: Some(Piece {
@@ -87,16 +87,16 @@ pub fn get_next_board(board: &Board, move_: &Move) -> Board {
 
     *source_slot = None;
 
+    // Any pawn move results in it not being able to dash again
     if let Piece {
         model: Pawn {
             ref mut can_dash,
-            ref mut just_dashed,
+            ..
         },
         ..
     } = source_piece
     {
         *can_dash = false;
-        *just_dashed = false;
     }
 
     match move_.kind {
@@ -141,8 +141,8 @@ pub fn get_next_board(board: &Board, move_: &Move) -> Board {
             *rook_source_slot = None;
 
             let Square { slot: ref mut rook_target_slot, .. } = next_board.spaces[Coords {
-                x: move_.target.x,
-                y: move_.target.y,
+                x: move_.target.x + (move_.source.x - rook_coords.x).signum(),
+                y: rook_coords.y,
             }] else {
                 panic!("Invalid castle, no rook target square");
             };

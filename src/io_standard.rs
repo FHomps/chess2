@@ -18,14 +18,14 @@ pub fn poll_restart() -> bool {
 
 pub fn get_pieces_string() -> String {
     String::from("\
-rnbqkbnr
+r___k__r
 pppppppp
 ________
 ________
 ________
 ________
 PPPPPPPP
-RNBQKBNR")
+R___K__R")
 }
 
 pub fn get_promotions_string() -> String {
