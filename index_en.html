@@ -4,10 +4,9 @@
     <base data-trunk-public-url/>
     <meta charset="UTF-8" />
     <title>Chess 2</title>
-    <link data-trunk rel="css" href="css/index.css">
-    <link data-trunk rel="copy-dir" href="assets">
-    <link data-trunk rel="rust" data-wasm-opt="z">
-    <script>window.MSInputMethodContext && document.documentMode && document.write('<script src="https://cdn.jsdelivr.net/gh/nuxodin/ie11CustomProperties@4.1.0/ie11CustomProperties.min.js"><\/script>');</script>
+    <link data-trunk rel="css" href="css/index.css" data-integrity="none">
+    <link data-trunk rel="copy-dir" href="assets" data-integrity="none">
+    <link data-trunk rel="rust" data-wasm-opt="z" data-integrity="none">
   </head>
   <body>
     <div id="nav_bar">
@@ -15,7 +14,7 @@
         <a href="/fr/chess2" target="_self"><img src="/assets/shared/flags/flag_fr.png" alt="Version française"></a>
         <img src="/assets/shared/flags/flag_en.png" alt="English version">
       </div>
-      <div id=nav_links>
+      <div id="nav_links">
         <a href="/en/index.html" target="_self">Home</a>
         <a href="/en/carbon/index.html" target="_self">Carbon</a>
         <a href="." target="_self">Chess 2</a>
@@ -68,5 +67,5 @@
       </canvas>
     </div>
   </body>
-  <script data-trunk src="js/index.js"></script>
+  <script data-trunk src="js/index.js" data-integrity="none"></script>
 </html>

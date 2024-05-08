@@ -1,5 +1,5 @@
 [build]
-target = "index_fr.html"
+target = "index_en.html"
 dist = "dist/assets/chess2/"
 public_url = "/assets/chess2/"
 filehash = false
