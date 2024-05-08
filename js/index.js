@@ -35,6 +35,15 @@ ________
 ________
 PPPPPPPP
 RNBQKBNR`,
+    "double": `\
+rnbqkbnrXXrnbqkbnr
+ppppppppXXpppppppp
+________XX________
+________XX________
+________XX________
+________XX________
+PPPPPPPPXXPPPPPPPP
+RNBQKBNRXXRNBQKBNR`,
     "custom": ""
 }
 
@@ -75,6 +84,15 @@ ________
 ________
 ________
 bbbbbbbb`,
+    "double": `\
+WWWWWWWWXXWWWWWWWW
+________XX________
+________XX________
+________XX________
+________XX________
+________XX________
+________XX________
+bbbbbbbbXXbbbbbbbb`,
     "custom": ""
 }
 
