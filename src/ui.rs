@@ -79,7 +79,8 @@ struct Selections {
 
 #[derive(Resource)]
 struct Textures {
-    pub pieces: Handle<TextureAtlas>,
+    pub pieces: Handle<Image>,
+    pub pieces_tal: Handle<TextureAtlasLayout>,
     pub marker: Handle<Image>,
     pub promotion_popup: Handle<Image>
 }
@@ -87,18 +88,18 @@ struct Textures {
 fn init_ui(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut atlases: ResMut<Assets<TextureAtlas>>,
+    mut atlases: ResMut<Assets<TextureAtlasLayout>>,
 ) {
     commands.spawn(Camera2dBundle::default());
 
     commands.insert_resource(Textures {
-        pieces: atlases.add(TextureAtlas::from_grid(
-            asset_server.load("pieces.png"),
+        pieces: asset_server.load("pieces.png"),
+        pieces_tal: atlases.add(TextureAtlasLayout::from_grid(
             Vec2::splat(PIECE_TEX_SIZE),
             6,
             2,
             None,
-            None,
+            None
         )),
         marker: asset_server.load("marker.png"),
         promotion_popup: asset_server.load("promotion_popup.png")
@@ -174,9 +175,9 @@ fn update_board_display(
                         y: y as isize,
                     },
                     SpriteSheetBundle {
-                        texture_atlas: textures.pieces.clone(),
-                        sprite: TextureAtlasSprite {
-                            index: piece.texture_index(),
+                        texture: textures.pieces.clone(),
+                        atlas: TextureAtlas { layout: textures.pieces_tal.clone(), index: piece.texture_index() },
+                        sprite: Sprite {
                             custom_size: Some(Vec2::ONE),
                             ..default()
                         },
@@ -203,7 +204,7 @@ fn move_piece(
     mut selections: ResMut<Selections>,
     mut displayed_pieces: Query<(Entity, &Piece, &mut Transform, &Coords), Without<PromotionChoice>>,
     windows: Query<&Window>,
-    buttons: Res<Input<MouseButton>>,
+    buttons: Res<ButtonInput<MouseButton>>,
     playground: Query<(Entity, &InverseGTransformCache), With<Playground>>,
     markers: Query<Entity, With<Marker>>,
     textures: Res<Textures>,
@@ -348,7 +349,7 @@ fn move_piece(
             selections.piece = None;
 
             // Stop displaying move markers
-            markers.for_each(|marker_entity| {
+            markers.iter().for_each(|marker_entity| {
                 if let Some(mut ec) = commands.get_entity(marker_entity) {
                     ec.despawn()
                 }
@@ -401,12 +402,15 @@ fn move_piece(
                                     parent.spawn((
                                         PromotionChoice(model),
                                         SpriteSheetBundle {
-                                            texture_atlas: textures.pieces.clone(),
-                                            sprite: TextureAtlasSprite {
+                                            texture: textures.pieces.clone(),
+                                            atlas: TextureAtlas {
+                                                layout: textures.pieces_tal.clone(),
                                                 index: Piece {
                                                     model,
                                                     side: piece.side
-                                                }.texture_index(),
+                                                }.texture_index()
+                                            },
+                                            sprite: Sprite {
                                                 custom_size: Some(Vec2::ONE),
                                                 ..default()
                                             },
@@ -521,7 +525,7 @@ fn update_playground_transform(
         }
     };
 
-    for event in resize_events.iter() {
+    for event in resize_events.read() {
         update_transforms(event.width as f32, event.height as f32);
     }
 

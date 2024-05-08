@@ -20,3 +20,9 @@
     width: 100%;
     height: 5cm;
 }
+
+canvas {
+    width: 100vw!important;
+    height: 100vh!important;
+  }
+  

@@ -12,7 +12,7 @@ use board::*;
 use sets::*;
 use ui::*;
 use logic::*;
-use bevy::prelude::*;
+use bevy::{asset::AssetMetaCheck, prelude::*};
 use turns::*;
 #[cfg(target_family = "wasm")]
 use io_wasm::*;
@@ -56,12 +56,13 @@ fn poll_io(
 
 pub fn main() {
     App::new()
+        .insert_resource(AssetMetaCheck::Never)
         .add_plugins((
             DefaultPlugins.set(
                 WindowPlugin {
                     primary_window: Some(Window {
                         canvas: Some(String::from("#bevy_game")),
-                        fit_canvas_to_parent: true,
+                        //fit_canvas_to_parent: true,
                         prevent_default_event_handling: false,
                         ..default()
                     }),

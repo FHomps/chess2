@@ -8,7 +8,7 @@ ndarray = "0.15"
 wasm-bindgen = "0.2"
 
 [dependencies.bevy]
-version = "0.11"
+version = "0.13"
 default-features = false
 features = [
   "bevy_asset",
@@ -22,7 +22,7 @@ features = [
 ]
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.bevy]
-version = "0.11"
+version = "0.13"
 features = [
   "multi-threaded",
   "dynamic_linking"
