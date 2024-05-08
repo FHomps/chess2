@@ -9,6 +9,16 @@ use bevy::{prelude::*, transform::TransformSystem, window::WindowResized};
 
 const BG_TEX_SIZE: Vec2 = Vec2::new(2560., 1587.);
 const PIECE_TEX_SIZE: f32 = 256.;
+enum SpriteHeight {
+    Background,
+    Square,
+    MoveMarker,
+    PromotionMarker,
+    Piece,
+    HeldPiece,
+    PromotionPopup,
+    PromotionPopupPiece
+}
 
 pub struct UIPlugin;
 
@@ -160,7 +170,11 @@ fn update_board_display(
                             custom_size: Some(Vec2::ONE),
                             ..default()
                         },
-                        transform: Transform::from_translation(Vec3::new(x as f32, y as f32, 1.)),
+                        transform: Transform::from_translation(Vec3::new(
+                            x as f32,
+                            y as f32,
+                            SpriteHeight::Square as i32 as f32
+                        )),
                         ..default()
                     }
                 ));
@@ -182,7 +196,9 @@ fn update_board_display(
                             ..default()
                         },
                         transform: Transform::from_translation(Vec3::new(
-                            x as f32, y as f32, 2.,
+                            x as f32,
+                            y as f32,
+                            SpriteHeight::Piece as i32 as f32
                         )).with_rotation(Quat::from_rotation_z(
                             match display_state.bottom_side {
                                 Side::White => 0.,
@@ -274,7 +290,9 @@ fn move_piece(
             selections.piece = Some(piece_entity);
 
             // Snap the piece to mouse position
-            piece_transform.translation = mouse_pos.truncate().extend(3.);
+            piece_transform.translation = mouse_pos.truncate().extend(
+                SpriteHeight::HeldPiece as i32 as f32
+            );
             piece_transform.scale = Vec2::splat(1.2).extend(1.);
 
             // Display possible move markers
@@ -292,11 +310,12 @@ fn move_piece(
                                 transform: Transform::from_translation(Vec3::new(
                                     move_.target.x as f32,
                                     move_.target.y as f32,
-                                    1.,
+                                    SpriteHeight::MoveMarker as i32 as f32,
                                 )),
                                 texture: textures.marker.clone(),
+                                visibility: Visibility::Visible,
                                 ..default()
-                            },
+                            }
                         ));
                     }
                 });
@@ -317,7 +336,9 @@ fn move_piece(
                                             ..default()
                                         },
                                         transform: Transform::from_translation(Vec3::new(
-                                            x as f32, y as f32, 1.,
+                                            x as f32,
+                                            y as f32,
+                                            SpriteHeight::PromotionMarker as i32 as f32
                                         )),
                                         texture: textures.marker.clone(),
                                         ..default()
@@ -334,14 +355,20 @@ fn move_piece(
         if buttons.pressed(MouseButton::Left) {
             if let Ok((_, _, mut piece_transform, _)) = displayed_pieces.get_mut(piece_entity) {
                 // Update its position to the mouse's
-                piece_transform.translation = mouse_pos.truncate().extend(3.);
+                piece_transform.translation = mouse_pos.truncate().extend(
+                    SpriteHeight::HeldPiece as i32 as f32
+                );
             }
         }
         // A piece is being released
         else if buttons.just_released(MouseButton::Left) {
             // Reset piece position
             if let Ok((_, _, mut piece_transform, piece_coords)) = displayed_pieces.get_mut(piece_entity) {
-                piece_transform.translation = Vec3::new(piece_coords.x as f32, piece_coords.y as f32, 2.);
+                piece_transform.translation = Vec3::new(
+                    piece_coords.x as f32,
+                    piece_coords.y as f32,
+                    SpriteHeight::Piece as i32 as f32
+                );
                 piece_transform.scale = Vec3::ONE;
             }
 
@@ -387,7 +414,9 @@ fn move_piece(
                                             ..default()
                                         },
                                         transform: Transform::from_translation(Vec3::new(
-                                            target.x as f32, target.y as f32, 3.,
+                                            target.x as f32,
+                                            target.y as f32,
+                                            SpriteHeight::PromotionPopup as i32 as f32
                                         )),
                                         texture: textures.promotion_popup.clone(),
                                         ..default()
@@ -415,7 +444,9 @@ fn move_piece(
                                                 ..default()
                                             },
                                             transform: Transform::from_translation(Vec3::new(
-                                                choice_x, target.y as f32, 4.,
+                                                choice_x,
+                                                target.y as f32,
+                                                SpriteHeight::PromotionPopupPiece as i32 as f32
                                             )).with_rotation(Quat::from_rotation_z(
                                                 match display_state.bottom_side {
                                                     Side::White => 0.,
@@ -510,7 +541,7 @@ fn update_playground_transform(
                 transform.translation = Vec3 {
                     x: -(bw - 1.) / 2. * pg_scale,
                     y: -(bh - 1.) / 2. * pg_scale,
-                    z: 0.,
+                    z: SpriteHeight::Background as i32 as f32,
                 };
             }
             else {
@@ -518,7 +549,7 @@ fn update_playground_transform(
                 transform.translation = Vec3 {
                     x: (bw - 1.) / 2. * pg_scale,
                     y: (bh - 1.) / 2. * pg_scale,
-                    z: 0.,
+                    z: SpriteHeight::Background as i32 as f32,
                 };
             }
             
