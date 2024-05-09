@@ -3,7 +3,6 @@ use std::f32::consts::PI;
 use crate::board::PieceModel::*;
 use crate::board::*;
 use crate::logic::*;
-use crate::sets::*;
 use crate::turns::*;
 use bevy::{prelude::*, transform::TransformSystem, window::WindowResized};
 
@@ -26,7 +25,7 @@ impl Plugin for UIPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(BoardDisplayState::default())
             .insert_resource(Selections::default())
-            .add_systems(Startup, init_ui.in_set(GameSet::UISetup))
+            .add_systems(Startup, init_ui)
             .add_systems(PostUpdate,
                 update_transform_cache
                     .after(TransformSystem::TransformPropagate),

@@ -1,5 +1,4 @@
 mod board;
-mod sets;
 mod ui;
 mod logic;
 mod turns;
@@ -9,7 +8,6 @@ mod io_wasm;
 mod io_standard;
 
 use board::*;
-use sets::*;
 use ui::*;
 use logic::*;
 use bevy::{asset::AssetMetaCheck, prelude::*};
@@ -69,12 +67,11 @@ pub fn main() {
                     ..default()
                 }
             ),
-            SetsPlugin,
             UIPlugin,
             LogicPlugin,
             TurnsPlugin
         ))
-        .add_systems(Startup, setup_initial_board.in_set(GameSet::BoardSetup))
-        .add_systems(Main, poll_io)
+        .add_systems(PreStartup, setup_initial_board)
+        .add_systems(Update, poll_io)
         .run();
 }
